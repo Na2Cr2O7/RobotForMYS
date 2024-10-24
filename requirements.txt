@@ -1,0 +1,14 @@
+selenium
+ollama
+psutil
+datetime
+pywin32
+requests
+pillow
+pynput
+argostranslate
+scikit-learn
+tqdm
+pygments
+matplotlib
+
