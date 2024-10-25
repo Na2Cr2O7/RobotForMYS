@@ -20,6 +20,7 @@
 ```
     pip install -r requirements.txt
 ```
+下载wkhtmltoimage并添加到环境变量
 ### 如果使用的视觉模型只能输出英文，请配置argostranslate
 ### 进入C:\Users\<username>\.local\cache\argos-translate
 ### 将index.json 复制进去
