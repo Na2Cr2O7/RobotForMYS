@@ -11,4 +11,5 @@ scikit-learn
 tqdm
 pygments
 matplotlib
-
+markdown
+imgkit
