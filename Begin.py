@@ -737,7 +737,7 @@ while True:
                                     if richtext:
                                         sendAnswer(richtext[1],inputBox,MAXIMUMCOUNT=1000)
                                         wd.find_element(By.CSS_SELECTOR,'.icon-tupian1').click()
-                                        CopyTest.uploadSth(os.path.abspath(image))
+                                        CopyTest.uploadSth(os.path.abspath(richtext[0]))
                                     else:
                                         sendAnswer(answer,inputBox,MAXIMUMCOUNT=1000)
                                 except:

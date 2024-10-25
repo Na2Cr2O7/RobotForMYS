@@ -1,111 +1,106 @@
-from pygments import highlight
-from pygments.lexers import PythonLexer, JavaLexer, CLexer, CppLexer, RubyLexer, GoLexer, JavascriptLexer
-from pygments.formatters import ImageFormatter
-import matplotlib.pyplot as plt
-def highlight_code(code, lexer:str, outfile:str):
-    if lexer=='python':
-        lexer=PythonLexer()
-    elif lexer=='java':
-        lexer=JavaLexer()
-    elif lexer=='c':
-        lexer=CLexer()
-    elif lexer=='cpp':
-        lexer=CppLexer()
-    elif lexer=='ruby':
-        lexer=RubyLexer()
-    elif lexer=='go':
-        lexer=GoLexer()
-    elif lexer=='javascript':
-        lexer=JavascriptLexer()
-    img = highlight(
-        code,
-        lexer,
-        ImageFormatter(style='monokai', font_size=70, font='A.ttf'),  # 确保字体支持中文
-        outfile=outfile + '.jpg'
-    )
-    
-    return outfile + '.jpg'
-def textToLaTeXImage(text:str, outfile:str,fontSize=16):
-    #换个字体,否则中文会显示为方框
-    plt.rcParams['font.sans-serif']=['SimHei']
-    plt.rcParams['axes.unicode_minus']=False
-    imageSize=(len(text)/10,2)
-    fig=plt.figure(figsize=imageSize)
-    ax=fig.add_axes([0,0,1,1])
-    ax.axis('off')
-    ay=fig.add_axes([0,0,1,1])
-    ay.axis('off')
-    ax.text(0.5,0.5,text,fontsize=fontSize,ha='center',va='center')
-    fig.savefig(outfile+'.jpg',bbox_inches='tight',pad_inches=0)
-    return outfile+'.jpg'
-def containsRichText(text:str):
-    if 'cpp' in text or 'python' in text or 'java' in text or 'ruby' in text or 'go' in text or 'javascript' in text:
-        a=text.find('```')
-        c=text.find('\n',a+3)
-        b=text.find('```',a+3)
-        code=text[c+1:b]
-        whatcode=text[a+3:c]
-        leftText=text[:a]
-        rightText=text[b+3:]
-        return [highlight_code(code,whatcode,'code'),leftText+rightText]
+import imgkit
+import markdown
+code=['cpp','python','java','javascript','html','css']
+def replacecode(s):
+    for i in code:
+        s=s.replace('```'+i,'```')
+    return s
+def markdownToImage(md:str):
+    html = markdown.markdown(md)
 
-    elif '$' in text:
-        temp=text
-        text=''
-        count=0
-        iiS=False
-        for i in temp:
-            count+=1
-            if count>20:
-                text+=i+'\n'
-            else:
-                text+=i
-            if i=='$':
-                if  not iiS:
-                    text+='\n$'
-                    iiS=True
-                else:
-                    text+='$'
-                    iiS=False
-        return [textToLaTeXImage(text,'LaTeXImage'),'']
-    else:
-        return False
+    imgkit.from_string(html, 'markdownImage.png')
+def indent(text: str, indent: str = '    ') -> str:
+    """
+    对被```包裹的代码块的每一行添加缩进
+
+    :param text: 原始文本
+    :param indent: 想要添加的缩进内容，默认为四个空格
+    :return: 添加缩进后的文本
+    """
+    text=replacecode(text)
+    # 以` ``` `分割文本
+    parts = text.split("```")
+    
+    # 检查是否有代码块
+    if len(parts) > 1:
+        # 对每个代码块进行处理
+        for i in range(1, len(parts), 2):
+            # 对代码行添加缩进
+            code_lines = parts[i].splitlines()
+            indented_code = '\n'.join([indent + line for line in code_lines])
+            parts[i] = indented_code
+
+    # 重新拼接文本
+    return "```".join(parts)
+def containsRichText(text:str):
+    if "```" in text:
+        markdownToImage(indent(text.replace('```','```\n')).replace('```',''))
+        
+        pass
+        return ['markdownImage.png','']
+    return False
 debugText='''
-在Windows系统中，你可以使用`system()`函数来执行命令行的关机操作。下面是一个简单的C++程序，它会设置一个倒计时关机的功能。请注意，这个程序仅适用于Windows，并且使用`system()`函数有一定的风险，因为它直接执行了命令行指令。
+当然可以！快速排序是一种高效的排序算法，由C. A. R. Hoare在1960年提出。它采用分治法的策略来把一个序列分成两个子序列。以下是一个简单的快速排序实现示例：
 
 ```cpp
 #include <iostream>
-#include <windows.h> // 需要包含这个头文件来使用Sleep函数
 
-void shutdownComputer(int seconds) {
-    std::cout << "您的电脑将在 " << seconds << " 秒后自动关机。\n";
-    
-    // 倒计时显示
-    while (seconds > 0) {
-        std::cout << seconds << "秒后关机..." << std::endl;
-        Sleep(1000); // 暂停一秒
-        seconds--;
-    }
-
-    // 执行关机命令
-    system("shutdown /s /t 0");
-}
+// 函数原型声明
+void quickSort(int arr[], int left, int right);
+int partition(int arr[], int left, int right);
+void swap(int &a, int &b);
 
 int main() {
-    int delay = 60; // 设置延迟时间，单位为秒
-    shutdownComputer(delay);
+    int data[] = {8, 7, 6, 1, 0, 9, 2};
+    int n = sizeof(data) / sizeof(data[0]);
+    std::cout << "Unsorted Array" << std::endl;
+    for (int i = 0; i < n; ++i)
+        std::cout << data[i] << " ";
+    std::cout << std::endl;
+
+    quickSort(data, 0, n - 1);
+
+    std::cout << "Sorted Array in Ascending Order:" << std::endl;
+    for (int i = 0; i < n; ++i)
+        std::cout << data[i] << " ";
     return 0;
+}
+
+// 快速排序函数
+void quickSort(int arr[], int left, int right) {
+    int index; // 分区后的索引
+    if (left < right) {
+        index = partition(arr, left, right); // 获取分区后的基准元素索引
+        quickSort(arr, left, index - 1); // 对左子数组进行递归排序
+        quickSort(arr, index + 1, right); // 对右子数组进行递归排序
+    }
+}
+
+// 分区函数
+int partition(int arr[], int left, int right) {
+    int pivot = arr[right]; // 取最右侧的元素作为基准元素
+    int i = left - 1;
+    for (int j = left; j < right; j++) {
+        if (arr[j] <= pivot) {
+            i++;
+            swap(arr[i], arr[j]); // 小于等于基准元素的交换到左边
+        }
+    }
+    swap(arr[i + 1], arr[right]); // 把基准元素放到中间位置
+    return i + 1;
+}
+
+// 交换函数
+void swap(int &a, int &b) {
+    int temp = a;
+    a = b;
+    b = temp;
 }
 ```
 
-在这个示例中，我们定义了一个`shutdownComputer`函数，它接受一个整数参数`seconds`，表示多少秒之后执行关机操作。在主函数`main`中，我们设置了延迟时间为60秒，并调用了`shutdownComputer`函数。
+这段代码首先定义了一个`quickSort`函数来执行快速排序算法，并且使用了一个辅助函数`partition`来将数组分成两部分。此外，还有一个`swap`函数用于交换数组中的元素。
 
-请注意：
-- 使用`system()`函数存在安全隐患，因为它允许直接执行命令行指令。如果可能的话，最好避免在生产代码中使用`system()`函数。
-- 关机操作应该谨慎使用，因为这可能会导致数据丢失或损坏。
-- 如果你想要取消关机操作，可以使用命令`shutdown /a`来取消正在进行的关机进程。
-
-如果你需要在其他操作系统（如Linux或macOS）上实现类似的功能，或者需要更安全的方式来处理系统级操作，请告诉我，我可以提供相应的解决方案。
+在`main`函数中，我们创建了一个数组并打印了排序前的结果，然后调用`quickSort`对数组进行排序，最后打印排序后的结果。
 '''
 debugText2=r'''
 你好你好你好你好
@@ -117,6 +112,5 @@ if __name__=='__main__':
         print(i)
     '''
     print(  containsRichText(debugText))
-    containsRichText(debugText2)
     #highlight_code(code,'python','pyCode')
     #textToLaTeXImage(r'水水水水水Hello $\frac{1}{2}$ World!','textCode')
