@@ -45,6 +45,7 @@ ollama run moondream
 ollama run qwen2.5:0.5b
 ```
 ### 配置Constant.py
+修改account.txt里面的账号密码
 ### 运行Begin.py
 
 ```
