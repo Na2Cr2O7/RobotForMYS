@@ -2,12 +2,11 @@
 Constant.py
 常量定义
 '''
-
+with open('account.txt','r',encoding='utf-8') as f:
+    ACCOUNT,PASSWORD=f.read().strip().split() # 账号密码
 MAXREPLYCOUNT=300 # 最大回复数
 NYANAME='氯铂酸喵Nya2PtCl6' # 机器人昵称
-VERSION='1.11.10T' # 版本号
-ACCOUNT="shanouyan158@163.com" # 邮箱账号
-PASSWORD="yuan5520520" # 邮箱密码
+VERSION='1.11.10U' # 版本号
 
 MODELSBYDAY=['qwen2.5:1.5b','qwen2:1.5b','qwen:1.8b','qwen2.5:0.5b','qwen2:0.5b'] # 日常模式模型
 MODELSBYNIGHT=['qwen2.5:0.5b','qwen2:0.5b'] # 夜间模式模型

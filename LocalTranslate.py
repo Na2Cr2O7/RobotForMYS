@@ -1,6 +1,11 @@
+
+import Constant
+if  not Constant.DOTRANSLATE:
+    def translate(text):
+        return text
+    
 import argostranslate.package
 import argostranslate.translate
-import Constant
 from_code = "en"
 to_code = "zh"
  # 加载已安装的语言包

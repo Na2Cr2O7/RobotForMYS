@@ -15,7 +15,6 @@ ExtendFilePath='Knowledge.txt'
 import os
 if not os.path.exists(ExtendFilePath):
     o=open(ExtendFilePath,'w',encoding='utf-8')
-    o.write('TODO: 在这里添加扩展知识')
     o.close()
 if not os.path.exists(file_path):
     o=open(file_path,'w',encoding='utf-8')
