@@ -31,13 +31,10 @@ except:
     pass
 import VisionUtil
 from Constant import *
+from CaptchaUtil import getSimiliarity
 #captchaPart
 """ 
-try:
-    import CaptchaUtil
-    
-except:
-    pass
+import CaptchaUtil
 def detectCaptcha():
         global wd
         try:
@@ -383,11 +380,14 @@ def containsImage():
         except:
             return False
     imageLink=a.find_element(By.TAG_NAME,'img').get_attribute('src')
+
     r=requests.get(imageLink,stream=True)
     fileName='SSSS.jpg'
     a=open(fileName,'wb')
     a.write(r.content)
     a.close()
+    if getSimiliarity(fileName,'Illegal.jpg') <1000:
+        return False
     return fileName
 try:
     getAnswer('你好',allowRag=False)
