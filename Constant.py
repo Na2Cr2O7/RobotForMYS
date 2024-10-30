@@ -6,19 +6,31 @@ with open('account.txt','r',encoding='utf-8') as f:
     ACCOUNT,PASSWORD=f.read().strip().split() # 账号密码
 MAXREPLYCOUNT=300 # 最大回复数
 NYANAME='氯铂酸喵Nya2PtCl6' # 机器人昵称
-VERSION='1.11.10U' # 版本号
+VERSION='1.13A' # 版本号
 
 MODELSBYDAY=['qwen2.5:1.5b','qwen2:1.5b','qwen:1.8b','qwen2.5:0.5b','qwen2:0.5b'] # 日常模式模型
 MODELSBYNIGHT=['qwen2.5:0.5b','qwen2:0.5b'] # 夜间模式模型
-MODELSATDAY=MODELSBYDAY
+MODELSATDAY=MODELSBYDAY 
 MODELSATNIGHT=MODELSBYNIGHT
 
 VISIONMODEL='moondream' # 视觉模型
 DOTRANSLATE=True # 是否翻译
+TRANSLATE=DOTRANSLATE # 是否翻译
 
 ModalWords=['呢','哦','喵','呀']#语气词
-MODALWORDS=ModalWords
+MODALWORDS=ModalWords # 语气词
 EMOTIONS=['_(香菱-诶嘿嘿)','_(香菱-星星眼)','_(香菱-新菜谱)',
           '_(芙宁娜-好震惊！)','_(芙宁娜-好困难)','_(芙宁娜-好好笑)'
-          ,'_(芙宁娜-好无聊)','_(芙宁娜-乐)','_(香菱-好吃)'] # 表情列表
+          ,'_(芙宁娜-好无聊)','_(芙宁娜-乐)','_(香菱-好吃)',] # 表情列表
 VIDEOURL='https://space.bilibili.com/3546570641377347/video' # 视频地址
+
+REPEATREPLYTIMES=4 # 生成回复的重复次数
+POSTLIMIT=150 # 回复帖子上限
+REPLYLIMIT=120 # 每次回复的最大回复数
+
+SCROLLTOP='var q=document.documentElement.scrollTop=0'  # 滚动到顶部
+SCROLLBOTTOM='var q=document.documentElement.scrollTop=10000'  # 滚动到底部
+SCROLLTRIES=12 # 滚动尝试次数
+
+CHECKFOLLOWED=True # 检查关注状态
+
