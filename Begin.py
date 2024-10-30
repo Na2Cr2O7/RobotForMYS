@@ -169,14 +169,14 @@ for file in os.listdir('./t/'):
 
 def Sleep(time):
     
-    print('sleep(',time,')')
+    print('Waiting for',time,'s')
     for i in tqdm(range(time)):
         feed()
         try:
             if express:
                 sleep(0.05)
             else:
-                sleep(randint(8,12)/10)
+                sleep(randint(2,18)/10)
         except:
             restart()
 class post_:
@@ -297,8 +297,12 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=REGALLOWED)->str:
 
     return text 
 """
-
-
+def getAnswerforNovel(question):
+    feed()
+    res=ollama.chat(model=MODEL,stream=False,messages=[{"role":"user","content":question}])
+    text=res['message']['content']
+    text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
+    return text
 def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=[],NewPrompts=False)->str:
     feed()
     #qwen2:0.5b,qwen2:1.5b,qwen2
@@ -316,14 +320,19 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=
         revelentDocuments='\n#参考资料:'+RAGUtil.getRevelentTexts(question)
     else:
         revelentDocuments=''
-    for _ in range(3):
+    textlist=[]
+    for __ in range(REPEATREPLYTIMES):
+        for _ in range(3):
 
-        res=ollama.chat(model=model,stream=False,messages=[{"role":"user","content":PROMPT+revelentDocuments}])
-        text=res['message']['content']
-        if  '抱歉' not in text and '对不起' not in text:
-            break
-        print(text,_)
-        feed()
+            res=ollama.chat(model=model,stream=False,messages=[{"role":"user","content":PROMPT+revelentDocuments}])
+            text=res['message']['content']
+            if  '抱歉' not in text and '对不起' not in text:
+                break
+            print(text,_)
+            feed()
+        textlist.append(text)
+    res=ollama.chat(model=model,stream=False,messages=[{"role":"user","content":'#'.join(textlist)}])
+    text=res['message']['content']
     text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
     if interpreted:
         text=text.replace("#","\n").replace("人工智能模型","猫娘").replace("**","").replace("AI语言模型","猫娘").replace("AI","猫娘")
@@ -359,9 +368,9 @@ def getPost():
 def getNovel():
     rQ=post_()
     
-    rQ.title=getAnswer('写一篇现代网文的标题……只要标题,小于30字',False,allowRag=False).replace('》','').replace('《','').replace('"','')
+    rQ.title=getAnswerforNovel('写一篇现代网文的标题……只要标题,小于30字').replace('》','').replace('《','').replace('"','')
 
-    text=getAnswer('以"'+rQ.title+'"为标题写一篇小说的内容，只要内容!',False,allowRag=False)
+    text=getAnswerforNovel('以"'+rQ.title+'"为标题写一篇小说的内容，只要内容!')
     a=1
     a2=1
     while a!=-1 or a2!=-1:
@@ -407,6 +416,14 @@ wd.implicitly_wait(35)
 login=True
 if fpr==TESTINT:
     login=False
+
+def ScrollToBottom()->None:
+    global wd
+    for _ in range(SCROLLTRIES):
+        wd.execute_script(SCROLLBOTTOM)
+        sleep(2)
+def scrollToBottom()->None:
+    ScrollToBottom()
 def sendAnswerD(answer,inputBox):
     
     temp=''
@@ -423,12 +440,7 @@ def sendAnswerD(answer,inputBox):
     inputBox.send_keys(temp)
     #print(temp)
 
-'''EMOTIONS=['_(藿藿 呆滞)',
-          '_(偶像姬_糖葫芦)','_(米游姬糖葫芦)'
-          ,'_(阿姬开心)','_(偶像姬_期待)','_(阿姬倒地)'
-          ,'_(阿姬灵感)','_(瑶瑶-馋)',
-          '_(知更鸟 暗中观察)','_(米游姬流鼻血)','_(吃糖葫芦)',
-          '_(米游姬-疑问)']'''
+
 
 def sendAnswer(answer,inputBox,refuseEmotions=False,MAXIMUMCOUNT=500):
     emotionCount=10*int(refuseEmotions)
@@ -481,11 +493,12 @@ if login:
         wd.find_element(By.CSS_SELECTOR ,'#password').send_keys(PASSWORD)
         wd.find_element(By.CSS_SELECTOR ,'.el-checkbox__inner').click()
         wd.find_element(By.CSS_SELECTOR ,'button.el-button').click()
-        if True:
+        if CHECKFOLLOWED:
             print('关注')
             Sleep(12)
             wd.get('https://www.miyoushe.com/ys/accountCenter/fanList?id=425414668')
             sleep(12)
+            scrollToBottom()
             for i in wd.find_elements(By.CLASS_NAME,'mhy-follow-button'):
                 if '回关' in str(i.get_attribute('innerHTML')):
                     i.click()
@@ -549,12 +562,14 @@ while True:
         wd.get('https://www.miyoushe.com/ys/notifications/reply')
         Sleep(1)
 
+        ScrollToBottom()
+
         #回复
         ready=wd.find_elements(By.CLASS_NAME,'notifications-common-card__content')
         
         for t1 in ready:
             tries+=1
-            if tries==30:
+            if tries==REPLYLIMIT:
                 continue
             try:
                 t1.click()
@@ -951,6 +966,7 @@ while True:
         tries=0
         nets=['','','','https://www.miyoushe.com/dby/timeline','https://www.miyoushe.com/dby/home/34?type=2','','','https://www.miyoushe.com/dby/home/35','https://www.miyoushe.com/ys/timeline','','https://www.miyoushe.com/ys/home/26']
         try:
+            ScrollToBottom()
             wd.get(nets[fpr])
             
             e=wd.find_elements(By.CLASS_NAME,"mhy-article-card")
@@ -958,7 +974,7 @@ while True:
             for post in e:
                 print(e.index(post),'|',len(e))
                 tries+=1
-                if tries>=40:
+                if tries>=POSTLIMIT:
                     break
                 try:
                     title=post.find_element(By.CLASS_NAME,"mhy-article-card__h3").text
