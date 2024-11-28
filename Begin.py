@@ -25,9 +25,9 @@ import BatteryStatus
 from RichText import *
 
 try:
-    import RAGUtil
+    #import RAGUtil
     import DrawUtilsII as DrawUtils
-except:
+except Exception as e:
     pass
 import VisionUtil
 from Constant import *
@@ -40,7 +40,7 @@ def detectCaptcha():
         try:
             wd.find_elements(By.CLASS_NAME,'geetest_item_ghost')
             return True
-        except:
+        except Exception as e:
             return False
 def getCaptchaImage():
         global wd
@@ -59,13 +59,13 @@ def getCaptchaImage():
             a2=st[a1:].find('")')
             try:
                 a=requests.get(st[a1+5:a1+a2]).content
-            except:
+            except Exception as e:
                 Sleep(1)
                 print('wait')               
             o=open('temp.jpg','wb')
             o.write(a)
             o.close()
-        except:
+        except Exception as e:
             return 1
         return 0
  """
@@ -100,7 +100,7 @@ def getExpress():
             on_release=release) as listener:
         
         listener.join()
-
+MAXIMUMCOUNT=700
 def watchDog():
     global fedDog
     count=0  
@@ -112,12 +112,11 @@ def watchDog():
             count=0
             sleep(1)
             fedDog=False
-        if count>500:
+        if count>MAXREPLYCOUNT/2:
             print(count,end=',')
-        if count>700:
-            print('WatchDogRestart')
-            restart()
-    
+        if count>MAXREPLYCOUNT:
+            restart('WatchDogRestart')
+
 def feed():
     global fedDog
     fedDog=True
@@ -140,15 +139,18 @@ def upd():
             o2.write(r)
             o2.close()
             sleep(20)
-        except:
+        except Exception as e:
             print('保存失败')
-            restart()
+            restart(e)
 def writeCount():
     k=datetime.now()
     kl=str(k.hour)+str(k.minute)+str(k.second)
     o3=open('.\\P\\'+kl,'w')
     o3.close()
-maxFileSize=os.path.getsize('replied.txt')
+try:
+    maxFileSize=os.path.getsize('replied.txt')
+except FileNotFoundError:
+    maxFileSize=0
 latestFile='0'
 
 feed()
@@ -166,7 +168,9 @@ if not latestFile=='0':
     shutil.move(latestFile,'replied.txt')
 for file in os.listdir('./t/'):
     os.remove('./t/'+file)
-
+if not os.path.exists('replied.txt'):
+    o=open('replied.txt','w')
+    o.close()
 def Sleep(time):
     
     print('Waiting for',time,'s')
@@ -177,8 +181,8 @@ def Sleep(time):
                 sleep(0.05)
             else:
                 sleep(randint(2,18)/10)
-        except:
-            restart()
+        except Exception as e:
+            restart(e)
 class post_:
     title=''
     content=''
@@ -196,14 +200,37 @@ def pickImages(GetPost=False):
         return './ImagesPost/'+choice(os.listdir('./ImagesPost/'))
     else:
         return './Images/'+choice(os.listdir('./Images/'))
+def getTrainingData():
+    try:
+        global wd
+        title=wd.find_element(By.CSS_SELECTOR,'.mhy-article-page__title > h1:nth-child(1)').text
+        question=title+','+wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
+        with open('trainingData.txt','a',encoding='utf8') as f:
+            
+                a=wd.find_elements(By.CLASS_NAME,'reply-card__content')
+                for i in a:
+                    f.write('Q'+question+'\n')
+                    f.write('A'+i.find_element(By.TAG_NAME,'p').text+'\n')
+                b=wd.find_elements(By.CLASS_NAME,'reply-card__replies')
+                for i in zip(a,b):
+                    for j in i[1].find_elements(By.TAG_NAME,'p'):
+                        f.write('Q'+i[0].find_element(By.TAG_NAME,'p').text+'\n')
+                        f.write('A'+j.text+'\n') 
+    except:
+        pass
+
+    
+        
+
 #os.system("taskkill -F -im explorer.exe")
 #os.system("start taskmgr")
 
 
 
-TESTINT=11
-SLPTIME:int=240
-fpr:int=randint(0,9)
+TESTINT=12
+SLPTIME:int=120
+SLPTIMEFORREPLY:int=20
+fpr:int=randint(0,11)
 MODEL:str=choice(MODELSATNIGHT)
 auto:bool=False
 
@@ -216,7 +243,7 @@ except IndexError:
     pass
 if BatteryStatus.getModelChoice():
     MODEL=choice(MODELSATDAY)
-RAGALLOWED=BatteryStatus.getModelChoice()
+RAGALLOWED=False
 REGALLOWED=RAGALLOWED
 print(NYANAME,'model:',MODEL,' sleep:',SLPTIME,' begin in:',fpr ,' solveCAPTCHA:',auto)
 print(VERSION)
@@ -227,8 +254,12 @@ print(VERSION)
 
 feed()
 
-
-fg=open('Topic.txt','r',encoding='utf8')
+try:
+    fg=open('Topic.txt','r',encoding='utf8')
+except FileNotFoundError:
+    fg=open('Topic.txt','w',encoding='utf8')
+    fg.close()
+    fg=open('Topic.txt','r',encoding='utf8')
 to=fg.read().split('\n')
 topics=[e for e in to if e !='']
 
@@ -237,11 +268,21 @@ _start_new_thread(upd,tuple())
 
 
 
-def restart():
+def restart(exception=None):
+    global urlList
+    try:
+        u=open('urlList.txt','a')
+        for i in urlList:
+            u.write(i+'\n')
+        u.close()
+    except:
+        pass
+    if exception:
+        print(exception)
     global wd
     try:
         wd.quit()
-    except:
+    except Exception as e:
         pass
     args=sys.argv[:]
     args.insert(0,sys.executable)
@@ -252,7 +293,12 @@ def restart():
 def interpret(text):
     a=1
     a2=1
-    text=text.replace('\n',';').replace('玉玉','抑郁').replace('紫砂','自杀').replace('超级香菱喵喵侠','你好,')
+    text=text.replace('\n',';')
+    try:
+        for i in REPLACEDICT:
+            text=text.replace(i,REPLACEDICT[i])
+    except Exception as e:
+        print(e)
     return text
     while a!=-1 or a2!=-1:
         a=text.find('_(')
@@ -297,45 +343,62 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=REGALLOWED)->str:
 
     return text 
 """
+def getAnswerLite(question):
+    return getAnswerforNovel(question)
 def getAnswerforNovel(question):
     feed()
     res=ollama.chat(model=MODEL,stream=False,messages=[{"role":"user","content":question}])
     text=res['message']['content']
     text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
     return text
-def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=[],NewPrompts=False)->str:
+def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=[],NewPrompts=False,useCHATTERBOT=True)->str:
     feed()
     #qwen2:0.5b,qwen2:1.5b,qwen2
     if NewPrompts:
         for i in question.split('\n'):
             if '#' in i:
                 Prompts.append(i)
-        for i in Prompts:
+        for i in Prompts:   
             question=question.replace(i,'')
         PROMPT='\n#'.join(Prompts)+question
     else:
         PROMPT=question
-    if allowRag and len(question)<100 and len(question)>20:
-        #text=RAGUtil.getRag(question,model)
-        revelentDocuments='\n#参考资料:'+RAGUtil.getRevelentTexts(question)
-    else:
-        revelentDocuments=''
+    revelentDocuments=''
     textlist=[]
-    for __ in range(REPEATREPLYTIMES):
-        for _ in range(3):
+    if not useCHATTERBOT:
+        for __ in range(REPEATREPLYTIMES):
+            for _ in range(3):
 
-            res=ollama.chat(model=model,stream=False,messages=[{"role":"user","content":PROMPT+revelentDocuments}])
-            text=res['message']['content']
-            if  '抱歉' not in text and '对不起' not in text:
-                break
-            print(text,_)
-            feed()
-        textlist.append(text)
-    res=ollama.chat(model=model,stream=False,messages=[{"role":"user","content":'#'.join(textlist)}])
-    text=res['message']['content']
-    text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
-    if interpreted:
-        text=text.replace("#","\n").replace("人工智能模型","猫娘").replace("**","").replace("AI语言模型","猫娘").replace("AI","猫娘")
+                res=ollama.chat(model=model,stream=False,messages=[{"role":"user","content":PROMPT+revelentDocuments}])
+                text=res['message']['content']
+                if  '抱歉' not in text and '对不起' not in text:
+                    break
+                print(text,_)
+                feed()
+            textlist.append(text)
+        res=ollama.chat(model=model,stream=False,messages=[{"role":"user","content":'#总结以下回复:'+'\n#'.join(textlist)}])
+        
+        text=res['message']['content']
+    else:
+        try:
+            os.remove(ANSWERPATH)
+        except:
+            pass
+        print(CHATTERBOTLAUNCH+PROMPT.replace('\n',' ').replace('#',',')+revelentDocuments)
+        os.system(CHATTERBOTLAUNCH+PROMPT.replace('\n',' ')+revelentDocuments)
+        while not os.path.exists(ANSWERPATH):
+            Sleep(1)
+        f=open(ANSWERPATH,'r',encoding='utf8')
+        text=f.read()
+        f.close()
+        print(text)
+        
+        
+    
+    if interpreted or not containsRichTextWithoutInterpretation(text):
+        text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
+        for i in REPLACEDICTINREPLY:
+            text=text.replace(i,REPLACEDICTINREPLY[i])
         temp=''
         for k in text:
             
@@ -360,9 +423,9 @@ def getPost():
     topic=choice(topics)
     print('以'+topic+'为主题发一条帖子的标题……只要标题,小于30字')
 
-    rQ.title=getAnswer('以'+topic+'为主题发一条帖子的标题……只要标题,小于30字',False,allowRag=True).replace('"','')
+    rQ.title=getAnswerforNovel('以'+topic+'为主题发一条帖子的标题……只要标题,小于30字',False,allowRag=True).replace('"','')
     
-    rQ.content=getAnswer('以"'+rQ.title+'"为标题写一篇帖子的内容，只要内容!',False,allowRag=True)
+    rQ.content=getAnswerforNovel('以"'+rQ.title+'"为标题写一篇帖子的内容，只要内容!',False,allowRag=True)
     #print(rQ.title,'\n',rQ.content)
     return rQ
 def getNovel():
@@ -383,47 +446,71 @@ def containsImage():
     global wd
     try:
         a=wd.find_element(By.CLASS_NAME,'mhy-img-article')
-    except:
+    except Exception as e:
         try:
            a=wd.find_element(By.CLASS_NAME,'ql-image-box')
-        except:
+        except Exception as e:
             return False
     imageLink=a.find_element(By.TAG_NAME,'img').get_attribute('src')
 
     r=requests.get(imageLink,stream=True)
-    fileName='SSSS.jpg'
+    fileName='ImageInPost.jpg'
     a=open(fileName,'wb')
     a.write(r.content)
     a.close()
     if getSimiliarity(fileName,'Illegal.jpg') <1000:
         return False
     return fileName
+
+def containsImageinReply():
+    global wd
+    try:
+        imageLink=wd.find_element(By.CSS_SELECTOR,'.ql-image-box > img:nth-child(1)').get_attribute('src')
+    except:
+        return False
+    r=requests.get(imageLink,stream=True)
+    FileName='ImageinReply.jpg'
+    if r.status_code == 200:
+        a=open(FileName,'wb')
+        a.write(r.content)
+        a.close()
+        return FileName
+
 try:
     getAnswer('你好',allowRag=False)
-except:
+    getAnswerforNovel('你好')
+except Exception as e:
     print('模型尚未启动')
     os.system('start ollama serve')
     Sleep(2)
-    restart()
+    restart(e)
 print("模型启动成功")
 
 try:
     wd=webdriver.Firefox()
-except:
-    restart()
+except Exception as e:
+    restart(e)
 wd.implicitly_wait(35)
 #wd.execute_script("document.body.style.zoom='0.5'")
 login=True
 if fpr==TESTINT:
     login=False
 
-def ScrollToBottom()->None:
+def ScrollToBottom(tries=SCROLLTRIES)->None:
     global wd
-    for _ in range(SCROLLTRIES):
+    for _ in range(tries):
         wd.execute_script(SCROLLBOTTOM)
         sleep(2)
-def scrollToBottom()->None:
-    ScrollToBottom()
+    scrollToTop(tries=tries)
+def scrollToBottom(tries=SCROLLTRIES)->None:
+    ScrollToBottom(tries=SCROLLTRIES)
+def scrollToTop(tries=SCROLLTRIES)->None:
+    global wd
+    for _ in range(SCROLLTRIES):
+        wd.execute_script(SCROLLTOP)
+        sleep(2)
+def ScrollToTop(tries=SCROLLTRIES)->None:
+    scrollToTop(tries=SCROLLTRIES)
 def sendAnswerD(answer,inputBox):
     
     temp=''
@@ -470,7 +557,24 @@ def sendAnswer(answer,inputBox,refuseEmotions=False,MAXIMUMCOUNT=500):
     inputBox.send_keys(temp)
     #print(temp)
     Sleep(4)
+urlList=[]
+if not os.path.exists('urlList.txt'):
+    o=open('urlList.txt','w')
+    o.close()
 
+def checkUrl()->bool:
+    return False
+    try:
+        global wd,urlList
+        url=wd.current_url
+        s=url.find('article/')
+        articleIndex=url[s+8:]
+        if articleIndex in urlList:
+            return True
+        urlList.append(articleIndex)
+        return False
+    except:
+        return False
 def getCommand(text): #没什么用了
     if text=='Inquiry->':
         pass
@@ -482,7 +586,7 @@ if login:
         Sleep(12)
         try:
             wd.find_element(By.CSS_SELECTOR,".header__avatar > img:nth-child(1)").click()
-        except:
+        except Exception as e:
             wd.find_element(By.CSS_SELECTOR,".header__avatarwrp").click()
         Sleep(12)
         r=wd.find_element(By.ID,"mihoyo-login-platform-iframe")
@@ -498,7 +602,7 @@ if login:
             Sleep(12)
             wd.get('https://www.miyoushe.com/ys/accountCenter/fanList?id=425414668')
             sleep(12)
-            scrollToBottom()
+            scrollToBottom(20)
             for i in wd.find_elements(By.CLASS_NAME,'mhy-follow-button'):
                 if '回关' in str(i.get_attribute('innerHTML')):
                     i.click()
@@ -512,8 +616,8 @@ if login:
                     sleep(2)
                     wd.find_element(By.CSS_SELECTOR,'div.mhy-button:nth-child(2) > button:nth-child(1)').click()
                     sleep(2)
-    except:
-        restart()
+    except Exception as e:
+        restart(e)
 feed()
 #o=open('replied.txt','a')
 o=open('replied.txt','r')
@@ -548,12 +652,19 @@ while True:
         if fpr>11:
             fpr=0
     print(fpr,end=' ')
-    ValU=['回复','发帖','发小说帖','关注','生活','@','发图片帖','ACG','视频','创作图片','酒馆','酒馆关注','测试']
+    ValU=['回复','发帖','发小说帖','关注','生活','@','发图片帖','ACG','视频','创作图片','酒馆','酒馆关注','私信','测试']
     try:
         print(ValU[fpr],'-'*40)
-    except:
+    except Exception as e:
         pass
-
+    if fpr==11:
+        wd.quit()
+        try:
+            MAXREPLYCOUNT=1000
+            import AutoGui
+        except:
+            pass
+        restart('Normal Exit')
     if fpr==0:
         
 
@@ -573,31 +684,35 @@ while True:
                 continue
             try:
                 t1.click()
-            except:
-                restart()
+            except Exception as e:
+                restart(e)
             repllist=[]
             Sleep(8)
             originalPost=''
             try:
                 repld=wd.find_elements(By.CLASS_NAME,'reply-card__container')
-            except:
-                restart()
+            except Exception as e:
+                restart(e)
+            image=containsImageinReply()
+            imageDescription=''
             try:
             #查看原帖
                 wd.find_element(By.CSS_SELECTOR,'.reply-detail-container__main > div:nth-child(2) > div:nth-child(3) > a:nth-child(1)').click()
                 wd.switch_to.window(wd.window_handles[-1])
                 Sleep(2)
                 originalPost+=wd.find_element(By.CSS_SELECTOR,'.mhy-article-page__title').text
-
+                if not image:
+                    image=containsImage()
+                    imageDescription=''
                 try:
                     originalPost+='\n'+wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
-                except:
+                except Exception as e:
                     pass
             
                 wd.close()
                 wd.switch_to.window(wd.window_handles[-1])
-            except:
-                restart()
+            except Exception as e:
+                restart(e)
             #所有回复
             
             #a=ts.find_elements(By.CLASS_NAME,'mhy-account-title__name')
@@ -611,7 +726,7 @@ while True:
                     
                     if name.replace(' ','')==NYANAME:
                         continue
-                    content=i.find_element(By.CLASS_NAME,'reply-card__content').text.replace('﻿@超级香菱喵喵侠','')
+                    content=i.find_element(By.CLASS_NAME,'reply-card__content').text.replace('@'+NYANAME,'')
                     if content.replace(' ','')=='':
                         continue
                     i.find_element(By.CLASS_NAME,'mhy-heart-click__icon').click()
@@ -620,10 +735,22 @@ while True:
                     if name+content not in replied:
                         replied.append(name+content)
                         writereplied()
-                        try:
-                            answer=getAnswer(content+'\n#原帖:'+originalPost,NewPrompts=True)
-                        except:
-                            answer='喵。'
+                        if image and imageDescription=='':
+                            imageDescription=VisionUtil.getImageDescription([image])
+                            try:
+                                answer=getAnswer(content+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription,NewPrompts=True)
+                            except Exception as e:
+                                answer='喵。'
+                        elif image and imageDescription!='':
+                            try:
+                                answer=getAnswer(content+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription,NewPrompts=True)
+                            except Exception as e:
+                                answer='喵。'
+                        else:
+                            try:
+                                answer=getAnswer(content+'\n#原帖:'+originalPost,NewPrompts=True)
+                            except Exception as e:
+                                answer='喵。'
                         answer=answer[:500]
                         i.find_element(By.CLASS_NAME,'reply-card-operation-bottom__item').click()
                         #wd.find_element(By.CLASS_NAME,'ql-blank').send_keys(answer)
@@ -637,14 +764,14 @@ while True:
                         
                         Sleep(3)
                         #getimg()
-                        Sleep(SLPTIME)
-            except:
-                restart()
+                        Sleep(SLPTIMEFORREPLY)
+            except Exception as e:
+                restart(e)
                 break
             try:
                 wd.find_element(By.CLASS_NAME,'icon-close1').click()
                 sleep(2)
-            except:
+            except Exception as e:
                 pass
     elif fpr==1:#发帖
         try:
@@ -659,8 +786,8 @@ while True:
             sleep(1)
             wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
             Sleep(SLPTIME*2)
-        except:
-            restart()
+        except Exception as e:
+            restart(e)
     elif fpr==2:#发小说帖
         try:
             posG=getNovel()
@@ -682,31 +809,31 @@ while True:
             sleep(1)
             wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
             Sleep(SLPTIME*2) 
-        except:
-            restart()       
+        except Exception as e:
+            restart(e)       
     elif fpr==5: #@
         try:
             wd.get('https://www.miyoushe.com/dby/notifications/mention')
             ats=wd.find_elements(By.CLASS_NAME,'notifications-common-card')
-        except:
-            restart()
+        except Exception as e:
+            restart(e)
         for ri in ats:
             try:
                 print(ats.index(ri),'|',len(ats))
                 originalPost=''
                 try:
                     ri.click()
-                except:
-                    restart()
+                except Exception as e:
+                    restart(e)
                 try:
                     repld=wd.find_elements(By.CLASS_NAME,'reply-card__container')
                     Ser=False
-                except:
-                    restart()
+                except Exception as e:
+                    restart(e)
                 #查看原帖
                 try:
                     wd.find_element(By.CSS_SELECTOR,'.reply-detail-container__main > div:nth-child(2) > div:nth-child(3) > a:nth-child(1)').click()
-                except:
+                except Exception as e:
                     Ser=True
                 
                     
@@ -714,11 +841,11 @@ while True:
                 try:
                     wd.switch_to.window(wd.window_handles[-1])
                     originalPost+=wd.find_element(By.CSS_SELECTOR,'.mhy-article-page__title').text
-                except:
-                    restart()
+                except Exception as e:
+                    restart(e)
                 try:
                     originalPost+='\n'+wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
-                except:
+                except Exception as e:
                     pass
                 if not Ser:
                     wd.close()
@@ -726,14 +853,14 @@ while True:
                 else:
                             try:
                                 wd.find_element(By.CSS_SELECTOR,'div.mhy-article-actions__item:nth-child(3) > div:nth-child(1) > svg:nth-child(1)').click()
-                            except:
+                            except Exception as e:
                                 pass
                             #
                             title=wd.find_element(By.CSS_SELECTOR,'.mhy-article-page__title > h1:nth-child(1)').text
                             try:
                                 
                                 content=wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
-                            except:
+                            except Exception as e:
                                 content=''
                             content=interpret(content)
                             try:
@@ -747,15 +874,16 @@ while True:
                                 inputBox=wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor")
 
                                 try:
-                                    richtext=containsRichText(answer)
                                     
-                                    if richtext:
+                                    
+                                    if containsRichTextWithoutInterpretation(answer):
+                                        richtext=containsRichText(answer)
                                         sendAnswer(richtext[1],inputBox,MAXIMUMCOUNT=1000)
                                         wd.find_element(By.CSS_SELECTOR,'.icon-tupian1').click()
                                         CopyTest.uploadSth(os.path.abspath(richtext[0]))
                                     else:
                                         sendAnswer(answer,inputBox,MAXIMUMCOUNT=1000)
-                                except:
+                                except Exception as e:
                                     sendAnswer(answer,inputBox,MAXIMUMCOUNT=1000)
                                     pass
                                     
@@ -763,14 +891,14 @@ while True:
                                 #answer=getAnswer(title+','+content)
                                 
                                 sendAnswer(answer,inputBox)
-                            except:
+                            except Exception as e:
                                 pass
                             if randint(0,4)==0:
                                 try:
                                     CopyTest.copyImage(pickImages())
                                     wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor").send_keys(Keys.CONTROL,'v')
                                     Sleep(8)
-                                except:
+                                except Exception as e:
                                     pass
                             wd.find_element(By.CLASS_NAME,'mhy-button-normal').click()
                             writeCount()
@@ -781,8 +909,8 @@ while True:
                             Sleep(SLPTIME)
                             try:
                                 wd.find_element(By.CSS_SELECTOR,'.geetest_close').click()
-                                restart()
-                            except:
+                                restart(e)
+                            except Exception as e:
                                 print('?')
                             wd.close()
                             wd.switch_to.window(wd.window_handles[-1])
@@ -792,8 +920,8 @@ while True:
                 #所有回复
                 try:
                     ts=wd.find_element(By.CLASS_NAME,'mhy-action-sheet__body')
-                except:
-                    restart()
+                except Exception as e:
+                    restart(e)
                 #a=ts.find_elements(By.CLASS_NAME,'mhy-account-title__name')
                 #b=ts.find_elements(By.CLASS_NAME,'reply-card__content')
                 #c=ts.find_elements(By.CLASS_NAME,'reply-card-operation-bottom__item')
@@ -803,14 +931,14 @@ while True:
                         print(repld.index(i),'|',len(repld))
                         try:
                             name=i.find_element(By.CLASS_NAME,'mhy-account-title__name').text
-                        except:
+                        except Exception as e:
                             print('''name=i.find_element(By.CLASS_NAME,'mhy-account-title__name').text Fail''')
                             continue
                         if name.replace(' ','')=='Nya2PtCl4':
                             continue
                         try:
                             content=i.find_element(By.CLASS_NAME,'reply-card__content').text.replace('﻿@Nya2PtCl4','')
-                        except:
+                        except Exception as e:
                             content=''
                         if content.replace(' ','')=='':
                             continue
@@ -824,7 +952,7 @@ while True:
                                 answer=getAnswer(content+'\n#原帖:'+originalPost,NewPrompts=True)
                                 if len(answer)>500:
                                     answer=getAnswer(content+'……字数小于500字')[:500]
-                            except:
+                            except Exception as e:
                                 answer='喵。'
                             i.find_element(By.CLASS_NAME,'reply-card-operation-bottom__item').click()
                             writeCount()
@@ -840,20 +968,20 @@ while True:
                            
                             Sleep(3)
                           
-                            Sleep(SLPTIME)
+                            Sleep(SLPTIMEFORREPLY)
                             try:
                                 wd.find_element(By.CSS_SELECTOR,'.geetest_close').click()
-                                restart()
-                            except:
+                                restart(e)
+                            except Exception as e:
                                 print('?')
                             sleep(2)
                             try:
                                 wd.find_element(By.CSS_SELECTOR,'.icon-close1').click()
-                            except:
-                                restart()
-                except:
-                    restart()
-            except:
+                            except Exception as e:
+                                restart(e)
+                except Exception as e:
+                    restart(e)
+            except Exception as e:
                 continue
     elif fpr==6:#发图片帖
         #replied.append('分享图片')
@@ -864,8 +992,8 @@ while True:
             wd.find_element(By.CSS_SELECTOR,'.mhy-input__container > input:nth-child(1)').send_keys('分享图片')
             failTries=0
             wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
-        except:
-            restart()
+        except Exception as e:
+            restart(e)
         for i in range(4):
             try:
                 if randint(0,4)<1:
@@ -877,7 +1005,7 @@ while True:
                     CopyTest.uploadSth(os.path.abspath(pickImages(True)))
                     
 
-            except:
+            except Exception as e:
                 print('Fail')
                 failTries+=1
         if failTries<4:
@@ -891,7 +1019,7 @@ while True:
     elif fpr==9:#画画
         try:
             image=DrawUtils.drawPicture()
-        except:
+        except Exception as e:
             fpr+=1
             continue
         try:
@@ -906,27 +1034,24 @@ while True:
             wd.find_element(By.CSS_SELECTOR,'.icon-image').click()
             CopyTest.uploadSth(os.path.abspath('temp.png'))
             Sleep(8)
-            wd.find_element(By.CSS_SELECTOR,'.icon-image').click()
-            CopyTest.uploadSth(os.path.abspath('ReadyToConvert.jpg'))
-            Sleep(8)
             wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
             Sleep(SLPTIME*2)
-        except:
-            restart()
+        except Exception as e:
+            restart(e)
     elif fpr==8:#分享视频
         wd.get(VIDEOURL)
         try:
             wd.find_element(By.CSS_SELECTOR,'.bili-mini-close-icon')
             Sleep(2)
             wd.get(VIDEOURL)
-        except:
+        except Exception as e:
             pass
         try:
             Sleep(12)
             vtaglist=wd.find_elements(By.CLASS_NAME,'small-item')
             Videos=[]
-        except:
-            restart()
+        except Exception as e:
+            restart(e)
         for i in vtaglist:
             f=video()
             f.BVID=i.get_attribute('data-aid')
@@ -966,9 +1091,10 @@ while True:
         tries=0
         nets=['','','','https://www.miyoushe.com/dby/timeline','https://www.miyoushe.com/dby/home/34?type=2','','','https://www.miyoushe.com/dby/home/35','https://www.miyoushe.com/ys/timeline','','https://www.miyoushe.com/ys/home/26']
         try:
-            ScrollToBottom()
-            wd.get(nets[fpr])
             
+            wd.get(nets[fpr])
+            Sleep(12)
+            scrollToBottom()
             e=wd.find_elements(By.CLASS_NAME,"mhy-article-card")
             e2=wd.find_elements(By.CLASS_NAME,"mhy-router-link mhy-article-card__link")
             for post in e:
@@ -983,7 +1109,7 @@ while True:
                     #try:
                         
                         #content=post.find_element(By.CLASS_NAME,"mhy-article-card__content").text
-                    #except:
+                    #except Exception as e:
                         #没有内容
                         #content=''
 
@@ -1003,9 +1129,10 @@ while True:
                         til.click()
                         wd.switch_to.window(wd.window_handles[-1])
                         sleep(1)
+                        getTrainingData()
                         try:
                             content=wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
-                        except:
+                        except Exception as e:
                             content=''
                         content=interpret(content)
                         
@@ -1014,7 +1141,7 @@ while True:
                         #点赞
                         try:
                             wd.find_element(By.CSS_SELECTOR,'div.mhy-article-actions__item:nth-child(3) > div:nth-child(1) > svg:nth-child(1)').click()
-                        except:
+                        except Exception as e:
                             pass
                         #
                         try:
@@ -1029,17 +1156,18 @@ while True:
                             
                             inputBox=wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor")
                             try:
-                                richtext=containsRichText(answer)
                                 
-                                if richtext:
+                                
+                                if containsRichTextWithoutInterpretation(answer):
+                                    richtext=containsRichText(answer)
                                     sendAnswer(richtext[1],inputBox,MAXIMUMCOUNT=1000)
                                     wd.find_element(By.CSS_SELECTOR,'.icon-tupian1').click()
                                     CopyTest.uploadSth(os.path.abspath(image))
-                            except:
+                            except Exception as e:
                                 pass
                             
                             sendAnswer(answer,inputBox,MAXIMUMCOUNT=1000)
-                        except:
+                        except Exception as e:
                             pass
                         replied.append(content)
                         if randint(0,4)==0:
@@ -1058,10 +1186,16 @@ while True:
                             restart()
                         except:
                             print('?')
-                        wd.close()
-                        wd.switch_to.window(wd.window_handles[-1])
-                        #每次一遍，坚定信念
-                        getAnswer('在接下来的回答中……你一定要保持可爱……知道了吗')
+                        try:
+                            wd.close()
+                            wd.switch_to.window(wd.window_handles[-1])
+                        except:
+                            restart('Switch Failed')
+                            #每次一遍，坚定信念
+                        try:
+                            getAnswer('在接下来的回答中……你一定要保持可爱……知道了吗')
+                        except:
+                            pass
                         
                                                
                 except:
@@ -1069,11 +1203,11 @@ while True:
                     restart()
                     continue
 
-        except:
+        except Exception as e:
             
-            restart()
+            restart(e)
     fpr+=1
-    if fpr>10:
+    if fpr>11:
         fpr=0
 #wd.find_element(By.CLASS_NAME,'notifications-common-card__content--text').click()
 #a=wd.find_elements(By.CLASS_NAME,'notifications-common-card')

@@ -33,11 +33,13 @@ def indent(text: str, indent: str = '    ') -> str:
     # 重新拼接文本
     return "```".join(parts)
 def containsRichText(text:str):
-    if "```" in text:
         markdownToImage(indent(text.replace('```','```\n')).replace('```',''))
-        
-        pass
         return ['markdownImage.png','']
+def containsRichTextWithoutInterpretation(text:str)->bool:
+    if "```" in text:
+        return True
+    if len(text)>10000:
+        return True
     return False
 debugText='''
 当然可以！快速排序是一种高效的排序算法，由C. A. R. Hoare在1960年提出。它采用分治法的策略来把一个序列分成两个子序列。以下是一个简单的快速排序实现示例：
@@ -106,11 +108,16 @@ debugText2=r'''
 你好你好你好你好
 Hello $\frac{1}{2}$ World!
 '''
+from sys import argv
 if __name__=='__main__':
     code='''
     for i in range(10):
         print(i)
     '''
-    print(  containsRichText(debugText))
+    #print(  containsRichText(debugText))
+    if len(argv)>1:
+        with open(argv[1],'r',encoding='utf-8') as f:
+            text=f.read()
+        print(containsRichText(text))
     #highlight_code(code,'python','pyCode')
     #textToLaTeXImage(r'水水水水水Hello $\frac{1}{2}$ World!','textCode')
