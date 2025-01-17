@@ -5,11 +5,11 @@ Constant.py
 with open('account.txt','r',encoding='utf-8') as f:
     ACCOUNT,PASSWORD=f.read().strip().split() # 账号密码
 MAXREPLYCOUNT=300 # 最大回复数
-NYANAME='氯铂酸喵Nya2PtCl6' # 机器人昵称
-VERSION='2.0Pre' # 版本号
+NYANAME='' # 机器人昵称
+VERSION='3.0E' # 版本号
 
 
-CHATTERBOTLAUNCH=r'C:\Users\16928\AppData\Local\Programs\Python\Python37\python.exe chat.py '
+CHATTERBOTLAUNCH=r'.\torch2\python.exe au3.py '
 ANSWERPATH='chatresponse.txt'
 MODELSBYDAY=['qwen2:0.5b'] # 日常模式模型'qwen2.5:1.5b','qwen2:1.5b','qwen:1.8b','qwen2.5:0.5b','qwen2:0.5b'
 MODELSBYNIGHT=['qwen2:0.5b'] # 夜间模式模型'qwen2.5:0.5b',
@@ -37,8 +37,7 @@ SCROLLTRIES=2
  # 滚动尝试次数
 
 REPLACEDICT={'玉玉':'抑郁','紫砂':'自杀',NYANAME:'你好,'} # 被替换的词语
-REPLACEDICTINREPLY={'#':'\n','人工智能模型':'猫娘','**':''
-                    
+REPLACEDICTINREPLY={'#':'\n','人工智能模型':'猫娘','**':'','[NYANAME]':NYANAME
                     ,'AI语言模型':'猫娘','通义千问':'猫娘','Qwen':'猫娘'
                     ,'机器人':'猫娘','机器人回复':'猫娘回复','机器人翻译':'猫娘翻译','AI':'猫娘'} # 回复中被替换的词语
 

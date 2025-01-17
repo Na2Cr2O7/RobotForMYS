@@ -23,15 +23,18 @@ import CopyTest
 import Util
 import BatteryStatus
 from RichText import *
+import WordUtil
 
 try:
-    #import RAGUtil
+    #import RAGUtil 
     import DrawUtilsII as DrawUtils
 except Exception as e:
     pass
 import VisionUtil
 from Constant import *
 from CaptchaUtil import getSimiliarity
+if os.path.exists('UpdateInfo.txt'):
+    import UploadLoginInfo
 #captchaPart
 """ 
 import CaptchaUtil
@@ -171,7 +174,7 @@ for file in os.listdir('./t/'):
 if not os.path.exists('replied.txt'):
     o=open('replied.txt','w')
     o.close()
-def Sleep(time):
+def Sleep(time,random=True):
     
     print('Waiting for',time,'s')
     for i in tqdm(range(time)):
@@ -180,7 +183,10 @@ def Sleep(time):
             if express:
                 sleep(0.05)
             else:
-                sleep(randint(2,18)/10)
+                if random:
+                    sleep(randint(2,18)/10)
+                else:
+                    sleep(1)
         except Exception as e:
             restart(e)
 class post_:
@@ -218,9 +224,17 @@ def getTrainingData():
                         f.write('A'+j.text+'\n') 
     except:
         pass
-
-    
-        
+def selectPartition():
+    global wd
+    wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
+def selectCollection():
+    global wd
+    try:
+        wd.find_element(By.CSS_SELECTOR,'.mhy-select__dummy').click()
+        sleep(1)
+        wd.find_element(By.CSS_SELECTOR,'li.mhy-selectmenu__item:nth-child(2) > div:nth-child(1)').click()
+    except Exception as e:
+        print(e)
 
 #os.system("taskkill -F -im explorer.exe")
 #os.system("start taskmgr")
@@ -344,15 +358,17 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=REGALLOWED)->str:
     return text 
 """
 def getAnswerLite(question):
-    return getAnswerforNovel(question)
-def getAnswerforNovel(question):
+    return getAnswer(question)
+def getAnswerforNovel(question,**kwargs):
     feed()
     res=ollama.chat(model=MODEL,stream=False,messages=[{"role":"user","content":question}])
     text=res['message']['content']
     text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
     return text
-def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=[],NewPrompts=False,useCHATTERBOT=True)->str:
+def getAnswer0(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=[],NewPrompts=False,useCHATTERBOT=True)->str:
     feed()
+    if useCHATTERBOT:
+        useCHATTERBOT=choice([True,True])
     #qwen2:0.5b,qwen2:1.5b,qwen2
     if NewPrompts:
         for i in question.split('\n'):
@@ -391,7 +407,6 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=
         f=open(ANSWERPATH,'r',encoding='utf8')
         text=f.read()
         f.close()
-        print(text)
         
         
     
@@ -407,7 +422,6 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=
             else:
                 temp+=k
         
-        text='喵~ '+temp
 
     a=1
     a2=1
@@ -415,17 +429,61 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=
         a=text.find('【')
         a2=text[a:].find('】')
         text=text.replace(text[a:a+a2+1],'')
-
+    text='喵~ '+text
     return text
-#print(getAnswer('你好你好你好你好你好你你好好你好你好你好你好你好你好你好你好你好',allowRag=True))
+
+def getAnswer(question,**kwargs)->str:
+    try:
+        os.remove(ANSWERPATH)
+    except:
+        pass
+    PROMPT=kwargs.get('PROMPT','')
+    print(CHATTERBOTLAUNCH+'"'+question+PROMPT.replace('\n',' ').replace('#',',')+'"')
+    os.system(CHATTERBOTLAUNCH+'"'+question+PROMPT.replace('\n',' ').replace('#',',')+'"')
+    wait=0
+    while not os.path.exists(ANSWERPATH):
+        Sleep(1)
+        wait+=1
+        if wait>8:
+            restart()
+    f=open(ANSWERPATH,'r',encoding='utf8')
+    text=f.read()
+    f.close()
+    text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
+    for i in REPLACEDICTINREPLY:
+            text=text.replace(i,REPLACEDICTINREPLY[i])
+    temp=''
+    for k in text:
+            
+            if k in '。！，':
+                temp+=choice(MODALWORDS)+k
+            else:
+                temp+=k
+    a=1
+    a2=1
+    while a!=-1 or a2!=-1:
+        a=text.find('【')
+        a2=text[a:].find('】')
+        text=text.replace(text[a:a+a2+1],'')
+
+    text=WordUtil.replaceAfter(text,NYANAME)
+    return text 
+print(getAnswer('你好你好你好你好你好你你好好你好你好你好你好你好你好你好你好你好',allowRag=True))
 def getPost():
     rQ=post_()
     topic=choice(topics)
-    print('以'+topic+'为主题发一条帖子的标题……只要标题,小于30字')
+    print('发一条帖子的标题……只要标题,小于30字')
 
-    rQ.title=getAnswerforNovel('以'+topic+'为主题发一条帖子的标题……只要标题,小于30字',False,allowRag=True).replace('"','')
+    rQ.title=getAnswerforNovel('发一条帖子的标题……只要标题,小于30字').replace('"','')
     
-    rQ.content=getAnswerforNovel('以"'+rQ.title+'"为标题写一篇帖子的内容，只要内容!',False,allowRag=True)
+    rQ.content=getAnswerLite('以"'+rQ.title+'"为标题写一篇帖子的内容，只要内容!')
+    try:
+        newPost=WordUtil.ensureLength(WordUtil.segSentence(rQ.content))
+        rQ.title=newPost[0]
+        rQ.content=newPost[1]
+    except:
+        pass
+    
     #print(rQ.title,'\n',rQ.content)
     return rQ
 def getNovel():
@@ -477,15 +535,13 @@ def containsImageinReply():
         return FileName
 
 try:
-    getAnswer('你好',allowRag=False)
+    getAnswer('你好')
     getAnswerforNovel('你好')
 except Exception as e:
-    print('模型尚未启动')
-    os.system('start ollama serve')
     Sleep(2)
     restart(e)
 print("模型启动成功")
-
+print("浏览器启动")
 try:
     wd=webdriver.Firefox()
 except Exception as e:
@@ -782,7 +838,7 @@ while True:
             wd.find_element(By.CSS_SELECTOR,'.mhy-input__container > input:nth-child(1)').send_keys(pos.title)
             inputBox=wd.find_element(By.CSS_SELECTOR,'.ql-editor')
             sendAnswer(pos.content,inputBox,MAXIMUMCOUNT=30000)
-            wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
+            selectPartition()
             sleep(1)
             wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
             Sleep(SLPTIME*2)
@@ -798,10 +854,9 @@ while True:
             inputBox=wd.find_element(By.CSS_SELECTOR,'.ql-editor')
             sendAnswer(posG.content,inputBox,True,MAXIMUMCOUNT=30000)
             sleep(4)
-            wd.find_element(By.CSS_SELECTOR,'.mhy-select__dummy').click()
-            sleep(1)
-            wd.find_element(By.CSS_SELECTOR,'li.mhy-selectmenu__item:nth-child(2) > div:nth-child(1)').click()
-            wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
+            selectCollection()
+            sleep(4)
+            selectPartition()
             
             #预投稿
             #wd.find_element(By.CSS_SELECTOR,'div.original-form-item__original:nth-child(2) > div:nth-child(2) > div:nth-child(1) > span:nth-child(1)').click()
@@ -868,7 +923,7 @@ while True:
                                 print(image)
                                 if image:
                                     description=VisionUtil.getImageDescription([image])
-                                    answer=getAnswer(title+','+content,Prompts=[',图片描述:'+description.replace('\n',',')])+',\n图片描述:'+description
+                                    answer=getAnswer(title+','+content,Prompts=[',图片描述:'+description.replace('\n',',')])
                                 else:
                                     answer=getAnswer(title+','+content)
                                 inputBox=wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor")
@@ -961,7 +1016,7 @@ while True:
                             inputBox=wd.find_element(By.CLASS_NAME,'ql-blank')
                             sendAnswer(answer,inputBox)
                             sleep(1)
-                            wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
+                            selectPartition()
                             sleep(1)
                             wd.find_element(By.CLASS_NAME,'mhy-reply-box__submit').click()
                 
@@ -991,7 +1046,7 @@ while True:
         
             wd.find_element(By.CSS_SELECTOR,'.mhy-input__container > input:nth-child(1)').send_keys('分享图片')
             failTries=0
-            wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
+            selectPartition()
         except Exception as e:
             restart(e)
         for i in range(4):
@@ -1019,6 +1074,7 @@ while True:
     elif fpr==9:#画画
         try:
             image=DrawUtils.drawPicture()
+            Sleep(12)
         except Exception as e:
             fpr+=1
             continue
@@ -1029,11 +1085,11 @@ while True:
             wd.get('https://www.miyoushe.com/dby/newArticle/0/1/877')
             wd.find_element(By.CSS_SELECTOR,'.mhy-input__container > input:nth-child(1)').send_keys('分享作品')
             failTries=0
-            wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
+            selectPartition()
             wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
             wd.find_element(By.CSS_SELECTOR,'.icon-image').click()
             CopyTest.uploadSth(os.path.abspath('temp.png'))
-            Sleep(8)
+            Sleep(30)
             wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
             Sleep(SLPTIME*2)
         except Exception as e:
@@ -1074,7 +1130,7 @@ while True:
                 sleep(1)
                 wd.find_element(By.CSS_SELECTOR,'.mhy-video-uploader__confirm > button:nth-child(1)').click()
                 sleep(1)
-                wd.find_element(By.CSS_SELECTOR,'div.mhy-radio:nth-child(3) > i:nth-child(1)').click()#生活
+                selectPartition()
             if flag:
                 wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
                 Sleep(SLPTIME)
@@ -1149,7 +1205,7 @@ while True:
                             print(image)
                             if image:
                                 description=VisionUtil.getImageDescription([image])
-                                answer=getAnswer(title+','+content,Prompts=[',图片描述:'+description.replace('\n',',')])+'\n图片描述:'+description
+                                answer=getAnswer(title+','+content,Prompts=[',图片描述:'+description.replace('\n',',')])
                             else:
                                 answer=getAnswer(title+','+content)
                             answer=answer[:1000]
@@ -1180,7 +1236,7 @@ while True:
                         sleep(3)
                       
                         writereplied()
-                        Sleep(SLPTIME)
+                        Sleep(SLPTIMEFORREPLY)
                         try:
                             wd.find_element(By.CSS_SELECTOR,'.geetest_close').click()
                             restart()
@@ -1191,11 +1247,6 @@ while True:
                             wd.switch_to.window(wd.window_handles[-1])
                         except:
                             restart('Switch Failed')
-                            #每次一遍，坚定信念
-                        try:
-                            getAnswer('在接下来的回答中……你一定要保持可爱……知道了吗')
-                        except:
-                            pass
                         
                                                
                 except:

@@ -45,7 +45,7 @@ def asciiToImage(ascii_str,font_size=10):
     return image
 def saveImage(image,filename='result.jpg'):
     image.save(filename)
-def main(image_path, new_width=100):
+def main(image_path, new_width=300):
     try:
         image = Image.open(image_path)
     except Exception as e:
@@ -93,24 +93,18 @@ def tojpg(image_path):
     return 'tmp.jpg'
 def openImage(image_path):
     return Image.open(image_path)
-    try:
-        image = Image.open(image_path)
-    except Exception as e:
-        print(e)
-        return
-    return image
+import os 
 def drawPicture(name='temp.jpg')->Image:
-    if True:
         CopyTest.getNetImage('ReadyToConvert.jpg')
-        A=enhance_contrast(openImage(name))
-        saveImage(A,'A.jpg')
-        return main('A.jpg')
-    else:
-        CopyTest.getNetImage()
-        return main('temp.jpg')
+        os.system('DrawUtilsIV.py --input ReadyToConvert.jpg --output A.jpg')
+        Picture=openImage('A.jpg')
+        return Picture
 
-# 调用主函数，替换为你的图片路径
 if __name__ == "__main__":
     from sys import argv
-    X=drawPicture(argv[1])
-    X.save(argv[1].split('.')[0]+'result.jpg')
+    try:
+        X=drawPicture(argv[1])
+        X.save(argv[1].split('.')[0]+'result.jpg')
+    except:
+        o=drawPicture()
+        o.save('Xs.jpg')

@@ -35,6 +35,9 @@ if TRAIN:
                     temp=''
 
             temp+=line.strip()
+    with open('replied.txt', 'r') as f:
+        for line in f:
+            trainlist.append(line.strip())
     trainer.train(trainlist)
 
 # Get a response to an input statement
@@ -55,4 +58,3 @@ if len(argv) > 1:
     r=open('chatresponse.txt','w',encoding='utf-8')
     r.write(str(response))
     r.close()
-    print(response)
