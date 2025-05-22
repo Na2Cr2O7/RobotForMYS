@@ -17,7 +17,7 @@
 ```
     pip install -r requirements.txt
 ```
-下载wkhtmltoimage并添加到环境变量
+
 ### 如果使用的视觉模型只能输出英文，请配置argostranslate
 ### 进入C:\Users\<username>\.local\cache\argos-translate
 ### 将index.json 复制进去
@@ -40,7 +40,7 @@
 ```
 ollama run moondream 
 ```
-启动单独的一个answerUtil4.py进程
+启动单独的一个answerUtil4.py进程(requirements2.txt)
 ### 配置Constant.py
 修改account.txt里面的账号密码
 ### 运行Begin.py
