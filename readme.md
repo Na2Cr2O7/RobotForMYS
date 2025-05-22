@@ -7,9 +7,6 @@
 ### 自动点赞/评论
 ### 自动回复评论
 ### @
-### 写小说
-### 上传B站视频
-### markdown转图片
 
 
 ## 安装
@@ -39,11 +36,11 @@
 ### 请将chromedriver.exe或者geckodriver.exe放到项目根目录下
 ### 补充知识库:knowledge.txt
 ## 使用
-### 安装需要的模型，用于文本生成和图片生成的模型
+### 安装需要的模型，用于图片生成的模型
 ```
 ollama run moondream 
-ollama run qwen2.5:0.5b
 ```
+启动单独的一个answerUtil4.py进程
 ### 配置Constant.py
 修改account.txt里面的账号密码
 ### 运行Begin.py
@@ -51,7 +48,7 @@ ollama run qwen2.5:0.5b
 ```
     python Begin.py
 ```
-### 发图片帖需要的图片需要存放在ImagesPost文件夹下
+
 
 ## 未能解决的问题
 ### 胡言乱语
