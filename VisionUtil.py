@@ -36,6 +36,8 @@ def getAnswerImage(imagePaths:list,limitation=1,translate=True):
     if translate:
         try:
             result=LocalTranslate.translate(result)
+            if result.strip()=='':
+                result=' '
         except:
             pass
     end=time()

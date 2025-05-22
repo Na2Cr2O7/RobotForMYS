@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from time import sleep
+from time import sleep,time
 options=webdriver.FirefoxOptions()
 options.add_argument('--headless')
 options.add_argument('--disable-gpu')
@@ -24,17 +24,22 @@ import Util
 import BatteryStatus
 from RichText import *
 import WordUtil
-
+import StatusSet as Status
+#import Localtimer # type: ignore
 try:
     #import RAGUtil 
     import DrawUtilsII as DrawUtils
 except Exception as e:
     pass
 import VisionUtil
+import netFetchUtils
 from Constant import *
 from CaptchaUtil import getSimiliarity
+import spamFilter
+import Blacklist
 if os.path.exists('UpdateInfo.txt'):
     import UploadLoginInfo
+Status.setStatus("NewSession")
 #captchaPart
 """ 
 import CaptchaUtil
@@ -86,6 +91,10 @@ def getCaptchaImage():
 # 这里还有一个提交按钮要点一下
 # wd.?
 
+Filter=spamFilter.SpamFilter()
+Filter.loadSpamList()
+blacklist=Blacklist.Blacklist()
+blacklist.initialise()
 
 fedDog=True
 express=False
@@ -103,7 +112,7 @@ def getExpress():
             on_release=release) as listener:
         
         listener.join()
-MAXIMUMCOUNT=700
+MAXIMUMCOUNT=1200
 def watchDog():
     global fedDog
     count=0  
@@ -115,9 +124,10 @@ def watchDog():
             count=0
             sleep(1)
             fedDog=False
-        if count>MAXREPLYCOUNT/2:
+        if count>MAXIMUMCOUNT/2:
             print(count,end=',')
-        if count>MAXREPLYCOUNT:
+        if count>MAXIMUMCOUNT:
+            Status.setStatus('WatchDogRestart')
             restart('WatchDogRestart')
 
 def feed():
@@ -132,6 +142,7 @@ Util.renewRepliedCount()
 def upd():
     while True:
         try:
+            Status.setStatus('RepliedSaved')
             k=datetime.now()
             kl=str(k.hour)+str(k.minute)+str(k.second)
             o=open('replied.txt','r')
@@ -146,6 +157,7 @@ def upd():
             print('保存失败')
             restart(e)
 def writeCount():
+
     k=datetime.now()
     kl=str(k.hour)+str(k.minute)+str(k.second)
     o3=open('.\\P\\'+kl,'w')
@@ -157,8 +169,9 @@ except FileNotFoundError:
 latestFile='0'
 
 feed()
-
+MAXPROMPTLENGTH=320
 print('更新回复列表')
+Status.setStatus('LoadingReplied')
 for file in tqdm(os.listdir('./t/')):
     if maxFileSize < os.path.getsize('./t/'+file):
         latestFile='./t/'+file
@@ -177,6 +190,7 @@ if not os.path.exists('replied.txt'):
 def Sleep(time,random=True):
     
     print('Waiting for',time,'s')
+    Status.setStatus(f"Sleep({time})")
     for i in tqdm(range(time)):
         feed()
         try:
@@ -206,11 +220,39 @@ def pickImages(GetPost=False):
         return './ImagesPost/'+choice(os.listdir('./ImagesPost/'))
     else:
         return './Images/'+choice(os.listdir('./Images/'))
-def getTrainingData():
+def getTrainingDataTitlePost(title,content):
+    Status.setStatus("getTrainingDataTitlePost()")
+    if not os.path.exists('trainingDataPost.txt'):
+        
+        o=open('trainingDataPost.txt','w')
+        o.close()
+    try:
+        with open('trainingDataPost.txt','a',encoding='utf8') as f:
+            f.write('Q'+title+'\n')
+            f.write('A'+content+'\n')
+    except:
+        pass
+def getTrainingDataReply(question,answers):
+    Status.setStatus("getTrainingDataReply()")
+    if not os.path.exists('trainingData.txt'):
+        o=open('trainingData.txt','w')
+        o.close()
+    try:
+        with open('trainingData.txt','a',encoding='utf8') as f:
+            for i in answers:
+                f.write('Q'+question+'\n')
+                f.write('A'+i+'\n')
+    except:
+        pass
+def getTrainingDataPost(question):
+    Status.setStatus("getTrainingDataPost()")
+    if not os.path.exists('trainingData.txt'):
+        o=open('trainingData.txt','w')
+        o.close()
     try:
         global wd
-        title=wd.find_element(By.CSS_SELECTOR,'.mhy-article-page__title > h1:nth-child(1)').text
-        question=title+','+wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
+        #title=wd.find_element(By.CSS_SELECTOR,'.mhy-article-page__title > h1:nth-child(1)').text
+        #question=title+','+wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
         with open('trainingData.txt','a',encoding='utf8') as f:
             
                 a=wd.find_elements(By.CLASS_NAME,'reply-card__content')
@@ -234,6 +276,7 @@ def selectCollection():
         sleep(1)
         wd.find_element(By.CSS_SELECTOR,'li.mhy-selectmenu__item:nth-child(2) > div:nth-child(1)').click()
     except Exception as e:
+        Status.setStatus("selectCollection():"+str(e))
         print(e)
 
 #os.system("taskkill -F -im explorer.exe")
@@ -241,25 +284,30 @@ def selectCollection():
 
 
 
-TESTINT=12
+TESTINT=-12
 SLPTIME:int=120
 SLPTIMEFORREPLY:int=20
-fpr:int=randint(0,11)
+
+MONITORMODE=False
+
+ValU=['回复','发帖','发小说帖','关注','生活','@','发图片帖','ACG','视频','创作图片','酒馆','私信','获取图片']
+fpr:int=randint(0,len(ValU)-1)
+
+if MONITORMODE:
+    print('Monitor Mode started,no reply will be sent')
+    Status.setStatus("Monitor Mode started,no reply will be sent")
+    CHECKFOLLOWED=False
+    login=False
+
 MODEL:str=choice(MODELSATNIGHT)
 auto:bool=False
 
-try:
-    MODEL=sys.argv[1]
-    SLPTIME=int(sys.argv[2])
-    fpr=int(sys.argv[3])
-    auto=bool(int(sys.argv[4]))
-except IndexError:
-    pass
 if BatteryStatus.getModelChoice():
     MODEL=choice(MODELSATDAY)
 RAGALLOWED=False
 REGALLOWED=RAGALLOWED
-print(NYANAME,'model:',MODEL,' sleep:',SLPTIME,' begin in:',fpr ,' solveCAPTCHA:',auto)
+VERSION='4.0A'
+print(NYANAME,'model:',MODEL,' sleep:',SLPTIME,' begin in:',ValU[fpr] ,' solveCAPTCHA:',auto)
 print(VERSION)
 
         
@@ -280,27 +328,34 @@ topics=[e for e in to if e !='']
 
 _start_new_thread(upd,tuple())
 
-
-
-def restart(exception=None):
-    global urlList
-    try:
-        u=open('urlList.txt','a')
-        for i in urlList:
-            u.write(i+'\n')
-        u.close()
-    except:
-        pass
-    if exception:
-        print(exception)
+def terminate():
     global wd
+    global Filter
+    global blacklist
+    Filter.saveSpamList()
+    blacklist.saveToFile()
     try:
         wd.quit()
     except Exception as e:
         pass
+    os.system('cls')
+    print('Terminated. Now you can close the window safely.')
+
+def restart(exception=None):
+    terminate()
+    global urlList
+
+    Status.setStatus("Restart:")
+
+    if exception:
+        Status.setStatus(f"{exception}")
+        print(exception)
+    
+
     args=sys.argv[:]
     args.insert(0,sys.executable)
     os.execv(sys.executable,args)
+    
     print('restart')
 
 
@@ -313,7 +368,10 @@ def interpret(text):
             text=text.replace(i,REPLACEDICT[i])
     except Exception as e:
         print(e)
+
+    Status.setStatus(f"interpret({text})")
     return text
+
     while a!=-1 or a2!=-1:
         a=text.find('_(')
         a2=text[a:].find(')')
@@ -357,19 +415,34 @@ def getAnswer(question,interpreted=True,model=MODEL,allowRag=REGALLOWED)->str:
 
     return text 
 """
+def getAnswerUsingOllama(question):
+    return getAnswerLite(question)
 def getAnswerLite(question):
-    return getAnswer(question)
-def getAnswerforNovel(question,**kwargs):
-    feed()
+    Status.setStatus(f"getAnswerLite({question})...")
     res=ollama.chat(model=MODEL,stream=False,messages=[{"role":"user","content":question}])
     text=res['message']['content']
     text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
+    Status.setStatus(f"{question[:30]}->{text[:30]}")
+    return text
+def getAnswerforNovel(question,**kwargs):
+    Status.setStatus(f"getAnswerforNovel({question[:30]})...")
+    feed()
+    getAnswerIn(NOVALPKL,question)
+    
+    text=interpretReply().replace(';','\n')
+    Status.setStatus(f"{question[:30]}->{text[:30]}")
+    return text
+def getAnswerforPost(question,**kwargs):
+    Status.setStatus(f"getAnswerforPost({question[:30]})...")
+    feed()
+    getAnswerIn(POSTPKL,question)
+    text=interpretReply().replace(';','\n')
+    Status.setStatus(f"{question[:30]}->{text[:30]}")
     return text
 def getAnswer0(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts=[],NewPrompts=False,useCHATTERBOT=True)->str:
     feed()
     if useCHATTERBOT:
         useCHATTERBOT=choice([True,True])
-    #qwen2:0.5b,qwen2:1.5b,qwen2
     if NewPrompts:
         for i in question.split('\n'):
             if '#' in i:
@@ -432,24 +505,54 @@ def getAnswer0(question,interpreted=True,model=MODEL,allowRag=RAGALLOWED,Prompts
     text='喵~ '+text
     return text
 
-def getAnswer(question,**kwargs)->str:
-    try:
+def interpretReply()->str:
+    Status.setStatus("interpretingReply")
+    beginTime=time()
+    
+    #Localtimer.init_timer()
+    if os.path.exists(ANSWERPATH):
         os.remove(ANSWERPATH)
-    except:
-        pass
-    PROMPT=kwargs.get('PROMPT','')
-    print(CHATTERBOTLAUNCH+'"'+question+PROMPT.replace('\n',' ').replace('#',',')+'"')
-    os.system(CHATTERBOTLAUNCH+'"'+question+PROMPT.replace('\n',' ').replace('#',',')+'"')
-    wait=0
     while not os.path.exists(ANSWERPATH):
-        Sleep(1)
-        wait+=1
-        if wait>8:
-            restart()
+        sleep(.1)
+        print(time()-beginTime,'s',end='\r')
+        pass        
+    Status.setStatus(f"interpretedReply--{time()-beginTime}s")
     f=open(ANSWERPATH,'r',encoding='utf8')
     text=f.read()
     f.close()
     text=text.replace('\n\n','\n').replace('/n','\n').replace('**','')
+    if os.path.exists(ANSWERPATH):
+        os.remove(ANSWERPATH)
+    #Localtimer.stop_timer()
+    return text
+def catQuestion(question,**kwargs)->str:
+    
+    PROMPT=kwargs.get('PROMPT','')
+    if isinstance(PROMPT,list):
+        PROMPT=''.join(PROMPT)
+    result=question+PROMPT.replace('\n',' ').replace('#',',')[:MAXPROMPTLENGTH]
+    Status.setStatus(f"catQuestion({question})->{result}")
+    return result
+def getQuestion(question,**kwargs)->str:
+    return catQuestion(question,**kwargs)
+def getAnswer(question,**kwargs)->str:
+    if MONITORMODE:
+        return " "
+    questioninString=getQuestion(question,**kwargs)
+    Status.setStatus(f"getAnswer({question[:30]})...")
+    # feed()
+    # try:    
+    #     if len(PROMPT)>100:
+    #         PROMPT=getAnswerUsingOllama("生成尽可能短的概述")
+    # except:
+    #     print('生成概述失败')
+    # feed()
+    print(questioninString)
+    
+    getAnswerIn(NORMALPKL,questioninString)
+    
+    text=interpretReply()
+    feed()
     for i in REPLACEDICTINREPLY:
             text=text.replace(i,REPLACEDICTINREPLY[i])
     temp=''
@@ -467,31 +570,48 @@ def getAnswer(question,**kwargs)->str:
         text=text.replace(text[a:a+a2+1],'')
 
     text=WordUtil.replaceAfter(text,NYANAME)
+    Status.setStatus(f"getAnswer({question})->{text}")
     return text 
-print(getAnswer('你好你好你好你好你好你你好好你好你好你好你好你好你好你好你好你好',allowRag=True))
+#print(getAnswer('你好你好你好你好你好你你好好你好你好你好你好你好你好你好你好你好',allowRag=True))
 def getPost():
+    Status.setStatus("getPost()...")
     rQ=post_()
     topic=choice(topics)
-    print('发一条帖子的标题……只要标题,小于30字')
-
-    rQ.title=getAnswerforNovel('发一条帖子的标题……只要标题,小于30字').replace('"','')
+    os.system(TORCHPYTHONPATH+'TitleGenerator.py '+topic)
+    while not os.path.exists('generateTitle.txt'):
+        Sleep(1)
+    f=open('generateTitle.txt','r',encoding='utf8')
+    rQ.title=f.read()
+    f.close()
+    os.remove('generateTitle.txt')
     
-    rQ.content=getAnswerLite('以"'+rQ.title+'"为标题写一篇帖子的内容，只要内容!')
-    try:
-        newPost=WordUtil.ensureLength(WordUtil.segSentence(rQ.content))
-        rQ.title=newPost[0]
-        rQ.content=newPost[1]
-    except:
-        pass
+    getAnswerIn(POSTPKL,rQ.title)
+    rQ.content=interpretReply()
+
+
+    # rQ.title=getAnswerUsingOllama('发一条帖子的标题……只要标题,小于30字').replace('"','')
+    # rQ.content=getAnswerLite('以"'+rQ.title+'"为标题写一篇帖子的内容，只要内容!')
     
     #print(rQ.title,'\n',rQ.content)
+    Status.setStatus("getPost() done")
     return rQ
 def getNovel():
+    Status.setStatus("getNovel()...")
     rQ=post_()
     
-    rQ.title=getAnswerforNovel('写一篇现代网文的标题……只要标题,小于30字').replace('》','').replace('《','').replace('"','')
+    rQ.title=getAnswerUsingOllama('写一篇现代网文的标题……只要标题,小于30字').replace('》','').replace('《','').replace('"','')
 
-    text=getAnswerforNovel('以"'+rQ.title+'"为标题写一篇小说的内容，只要内容!')
+    text=getAnswerUsingOllama('以"'+rQ.title+'"为标题写一篇小说的内容，只要内容!')
+    text0=text[-1]
+    feed()
+    os.system(TORCHPYTHONPATH+'NovalGenerator.py '+text0)
+    while not os.path.exists('Noval.txt'):
+        Sleep(1)
+    f=open('Noval.txt','r',encoding='utf8')
+    text+=f.read()
+    f.close()
+    os.remove('Noval.txt')
+    feed()
     a=1
     a2=1
     while a!=-1 or a2!=-1:
@@ -499,9 +619,11 @@ def getNovel():
         a2=text[a:].find('》')
         text=text.replace(text[a:a+a2+1],'')
     rQ.content=text
+    Status.setStatus("getNovel() done")
     return rQ
 def containsImage():
     global wd
+    
     try:
         a=wd.find_element(By.CLASS_NAME,'mhy-img-article')
     except Exception as e:
@@ -510,8 +632,9 @@ def containsImage():
         except Exception as e:
             return False
     imageLink=a.find_element(By.TAG_NAME,'img').get_attribute('src')
-
+    Status.setStatus("containsImage()->Images contains")
     r=requests.get(imageLink,stream=True)
+
     fileName='ImageInPost.jpg'
     a=open(fileName,'wb')
     a.write(r.content)
@@ -527,6 +650,7 @@ def containsImageinReply():
     except:
         return False
     r=requests.get(imageLink,stream=True)
+    Status.setStatus("containsImageinReply()->Images contains")
     FileName='ImageinReply.jpg'
     if r.status_code == 200:
         a=open(FileName,'wb')
@@ -539,11 +663,12 @@ try:
     getAnswerforNovel('你好')
 except Exception as e:
     Sleep(2)
-    restart(e)
+    restart(e) 
 print("模型启动成功")
-print("浏览器启动")
+Status.setStatus("Model started")
 try:
     wd=webdriver.Firefox()
+    Status.setStatus("Browser started")
 except Exception as e:
     restart(e)
 wd.implicitly_wait(35)
@@ -552,12 +677,13 @@ login=True
 if fpr==TESTINT:
     login=False
 
-def ScrollToBottom(tries=SCROLLTRIES)->None:
+def ScrollToBottom(tries=SCROLLTRIES,goback=True)->None:
     global wd
     for _ in range(tries):
         wd.execute_script(SCROLLBOTTOM)
         sleep(2)
-    scrollToTop(tries=tries)
+    if goback:
+        scrollToTop(tries=tries)
 def scrollToBottom(tries=SCROLLTRIES)->None:
     ScrollToBottom(tries=SCROLLTRIES)
 def scrollToTop(tries=SCROLLTRIES)->None:
@@ -567,6 +693,16 @@ def scrollToTop(tries=SCROLLTRIES)->None:
         sleep(2)
 def ScrollToTop(tries=SCROLLTRIES)->None:
     scrollToTop(tries=SCROLLTRIES)
+def getAuthor():
+    
+    global wd
+    try:
+        author=wd.find_element(By.CSS_SELECTOR,'.mhy-user-card__link > span:nth-child(1)')
+        Status.setStatus(f'author:{author.text}')
+    except Exception as e:
+        Status.setStatus(f'getAuthor() failed:{e}')
+        return ''
+    return author.text
 def sendAnswerD(answer,inputBox):
     
     temp=''
@@ -586,6 +722,7 @@ def sendAnswerD(answer,inputBox):
 
 
 def sendAnswer(answer,inputBox,refuseEmotions=False,MAXIMUMCOUNT=500):
+    Status.setStatus(f"sendAnswer({answer},...MAXIMUMCOUNT={MAXIMUMCOUNT})")
     emotionCount=10*int(refuseEmotions)
     temp=''
     wordCount=0
@@ -613,6 +750,7 @@ def sendAnswer(answer,inputBox,refuseEmotions=False,MAXIMUMCOUNT=500):
     inputBox.send_keys(temp)
     #print(temp)
     Sleep(4)
+    Status.setStatus(f"sendAnswer(...)done")
 urlList=[]
 if not os.path.exists('urlList.txt'):
     o=open('urlList.txt','w')
@@ -653,10 +791,11 @@ if login:
         wd.find_element(By.CSS_SELECTOR ,'#password').send_keys(PASSWORD)
         wd.find_element(By.CSS_SELECTOR ,'.el-checkbox__inner').click()
         wd.find_element(By.CSS_SELECTOR ,'button.el-button').click()
+        Status.setStatus("Login successfully")
         if CHECKFOLLOWED:
             print('关注')
             Sleep(12)
-            wd.get('https://www.miyoushe.com/ys/accountCenter/fanList?id=425414668')
+            wd.get(FANLIST)
             sleep(12)
             scrollToBottom(20)
             for i in wd.find_elements(By.CLASS_NAME,'mhy-follow-button'):
@@ -664,14 +803,16 @@ if login:
                     i.click()
                     sleep(2)
             sleep(12)
-            wd.get('https://www.miyoushe.com/ys/accountCenter/followList?id=425414668')
-
+            wd.get(FOLLOWLIST)
+            sleep(12)
+            scrollToBottom(20)
             for i in wd.find_elements(By.CLASS_NAME,'mhy-follow-button'):
                 if '已关注' in str(i.get_attribute('innerHTML')):
                     i.click()
                     sleep(2)
                     wd.find_element(By.CSS_SELECTOR,'div.mhy-button:nth-child(2) > button:nth-child(1)').click()
                     sleep(2)
+            Status.setStatus("Followed Checked")
     except Exception as e:
         restart(e)
 feed()
@@ -682,7 +823,12 @@ tmprepl=o.read().split('\n')
 for n in tmprepl:
     replied.append(n.replace('[ENTER]','\n'))
 def writereplied():
+    #Status.setStatus("writereplied()")
     global replied
+    global Filter
+    global blacklist
+    Filter.saveSpamList()
+    blacklist.saveToFile()
     tmp=[]
     for i in replied:
         tmp.append(i.replace('\n','[ENTER]'))
@@ -701,23 +847,25 @@ def getNotebook():
     p.write(t)
     p.close()
 
-getNotebook()
+#getNotebook()
 while True:
-    while Util.getRepliedCount()>=MAXREPLYCOUNT and fpr in [0,3,4,5,7,10,11]:
-        fpr+=1
-        if fpr>11:
-            fpr=0
     print(fpr,end=' ')
-    ValU=['回复','发帖','发小说帖','关注','生活','@','发图片帖','ACG','视频','创作图片','酒馆','酒馆关注','私信','测试']
+    
     try:
         print(ValU[fpr],'-'*40)
+        Status.setStatus(f"Now:{ValU[fpr]}")
     except Exception as e:
         pass
     if fpr==11:
+        if MONITORMODE:
+            fpr+=1
+            continue
         wd.quit()
         try:
-            MAXREPLYCOUNT=1000
-            import AutoGui
+            MAXIMUMCOUNT=3600
+            
+            from AutoGui2 import empty
+            empty()
         except:
             pass
         restart('Normal Exit')
@@ -733,7 +881,6 @@ while True:
 
         #回复
         ready=wd.find_elements(By.CLASS_NAME,'notifications-common-card__content')
-        
         for t1 in ready:
             tries+=1
             if tries==REPLYLIMIT:
@@ -745,6 +892,20 @@ while True:
             repllist=[]
             Sleep(8)
             originalPost=''
+
+            try:
+                        wd.find_element(By.CSS_SELECTOR,'div.mhy-loadmore:nth-child(2) > div:nth-child(1) > button:nth-child(1)').click()
+                        Status.setStatus("Loading more comments")
+            except:
+                        print("❌没有找到'点击加载更多'按钮")
+                        Status.setStatus("Loading more comments failed")
+
+            #点击查看全部评论
+            try:
+                wd.find_element(By.CSS_SELECTOR,'.s-reply-list__title--showall').click() 
+                Status.setStatus("Clicking all comments")
+            except:
+                pass     
             try:
                 repld=wd.find_elements(By.CLASS_NAME,'reply-card__container')
             except Exception as e:
@@ -753,6 +914,7 @@ while True:
             imageDescription=''
             try:
             #查看原帖
+                Status.setStatus("getting original post")
                 wd.find_element(By.CSS_SELECTOR,'.reply-detail-container__main > div:nth-child(2) > div:nth-child(3) > a:nth-child(1)').click()
                 wd.switch_to.window(wd.window_handles[-1])
                 Sleep(2)
@@ -774,6 +936,7 @@ while True:
             #a=ts.find_elements(By.CLASS_NAME,'mhy-account-title__name')
             #b=ts.find_elements(By.CLASS_NAME,'reply-card__content')
             #c=ts.find_elements(By.CLASS_NAME,'reply-card-operation-bottom__item')
+            getTrainingDataReplyFlag=False
             try:
                 ts=wd.find_element(By.CLASS_NAME,'mhy-action-sheet__body')
                 for i in repld:
@@ -785,36 +948,71 @@ while True:
                     content=i.find_element(By.CLASS_NAME,'reply-card__content').text.replace('@'+NYANAME,'')
                     if content.replace(' ','')=='':
                         continue
+                    if Filter.isSpam(content):
+                        Status.setStatus(f"{content} is spam")
+                        blacklist.addUser(name)
+                        continue
+                    originalcontent=''
+                    answersToTrain=[]
+                    #找过去的对话
+                    try:
+                        Status.setStatus("getting previous conversations")
+                        for k in repld:
+
+                            tmp_content=content=k.find_element(By.CLASS_NAME,'reply-card__content').text.replace('@'+NYANAME,'')
+                            answersToTrain.append(tmp_content)
+                            originalcontent+=tmp_content+'\n'
+                    except Exception as e:
+                        print('过去的对话没有找到:',e)
+                        Status.setStatus("No previous conversation")
+                        originalcontent=''
+
+                    originalcontent="过去的回复:\n"+originalcontent
+
                     i.find_element(By.CLASS_NAME,'mhy-heart-click__icon').click()
                     content=interpret(content)
                     print(name+':'+content,name+content in replied)
-                    if name+content not in replied:
+                    Blacklist_=list(blacklist.getUsersWithCountOverTen())
+                    print(name,'🏁',name in Blacklist_)
+                    originalcontent+=content+'\n'
+
+                    
+                    if name+content not in replied and name not in Blacklist_:
+
                         replied.append(name+content)
+                        Status.setStatus(f"replying->{name+content}")
                         writereplied()
                         if image and imageDescription=='':
                             imageDescription=VisionUtil.getImageDescription([image])
                             try:
-                                answer=getAnswer(content+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription,NewPrompts=True)
+                                answer=getAnswer(content,PROMPT=[originalcontent+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription],NewPrompts=True)
+                                _question=getQuestion(content,PROMPT=[originalcontent+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription])
                             except Exception as e:
                                 answer='喵。'
                         elif image and imageDescription!='':
                             try:
-                                answer=getAnswer(content+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription,NewPrompts=True)
+                                answer=getAnswer(content,PROMPT=[originalcontent+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription],NewPrompts=True)
+                                _question=getQuestion(content,PROMPT=[originalcontent+'\n#原帖:'+originalPost+'#图片描述:'+imageDescription])
                             except Exception as e:
                                 answer='喵。'
                         else:
                             try:
-                                answer=getAnswer(content+'\n#原帖:'+originalPost,NewPrompts=True)
+                                answer=getAnswer(content,PROMPT=[originalcontent+'\n#原帖:'+originalPost],NewPrompts=True)
+                                _question=getQuestion(content,PROMPT=[originalcontent+'\n#原帖:'+originalPost])
                             except Exception as e:
                                 answer='喵。'
                         answer=answer[:500]
+                        if not getTrainingDataReplyFlag:
+                            getTrainingDataReply(_question,answersToTrain)
+                            getTrainingDataReplyFlag=True
                         i.find_element(By.CLASS_NAME,'reply-card-operation-bottom__item').click()
                         #wd.find_element(By.CLASS_NAME,'ql-blank').send_keys(answer)
                         Sleep(1)
                         inputBox=wd.find_element(By.CLASS_NAME,'ql-blank')
                         sendAnswer(answer,inputBox)
                         Sleep(1)
-                        wd.find_element(By.CLASS_NAME,'mhy-reply-box__submit').click()
+                        if not MONITORMODE:
+                            wd.find_element(By.CLASS_NAME,'mhy-reply-box__submit').click()
                         
                         writeCount()
                         
@@ -830,6 +1028,11 @@ while True:
             except Exception as e:
                 pass
     elif fpr==1:#发帖
+        fpr+=1
+        continue
+        if MONITORMODE:
+            fpr+=1
+            continue
         try:
             pos=getPost()
             replied.append(pos.title)
@@ -845,6 +1048,12 @@ while True:
         except Exception as e:
             restart(e)
     elif fpr==2:#发小说帖
+        fpr+=1
+        continue
+    
+        if MONITORMODE:
+            fpr+=1
+            continue
         try:
             posG=getNovel()
             replied.append(posG.title)
@@ -875,6 +1084,7 @@ while True:
         for ri in ats:
             try:
                 print(ats.index(ri),'|',len(ats))
+                Status.setStatus(f"Now:{ri}->@")
                 originalPost=''
                 try:
                     ri.click()
@@ -887,10 +1097,11 @@ while True:
                     restart(e)
                 #查看原帖
                 try:
+                    Status.setStatus(f"seeking original post")
                     wd.find_element(By.CSS_SELECTOR,'.reply-detail-container__main > div:nth-child(2) > div:nth-child(3) > a:nth-child(1)').click()
                 except Exception as e:
                     Ser=True
-                
+                    Status.setStatus(f"It is a post")
                     
                     pass
                 try:
@@ -918,12 +1129,15 @@ while True:
                             except Exception as e:
                                 content=''
                             content=interpret(content)
+                            if Filter.isSpam(content):
+                                Status.setStatus(f"{content} is spam")
+                                continue
                             try:
                                 image=containsImage()
                                 print(image)
                                 if image:
                                     description=VisionUtil.getImageDescription([image])
-                                    answer=getAnswer(title+','+content,Prompts=[',图片描述:'+description.replace('\n',',')])
+                                    answer=getAnswer(title+','+content,PROMPT=[',图片描述:'+description.replace('\n',',')])
                                 else:
                                     answer=getAnswer(title+','+content)
                                 inputBox=wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor")
@@ -955,22 +1169,23 @@ while True:
                                     Sleep(8)
                                 except Exception as e:
                                     pass
-                            wd.find_element(By.CLASS_NAME,'mhy-button-normal').click()
-                            writeCount()
+                            if not MONITORMODE:
+                                wd.find_element(By.CLASS_NAME,'mhy-button-normal').click()
+                                writeCount()
+                                writereplied()
                           
-                            sleep(3)
-                           
-                            writereplied()
+                       
+                            
                             Sleep(SLPTIME)
                             try:
                                 wd.find_element(By.CSS_SELECTOR,'.geetest_close').click()
-                                restart(e)
+                                #Status.setStatus(f"WARN:Found Captcha,maybe it needs to slow down")
+                                restart("Captcha Detected,now restarting")
                             except Exception as e:
                                 print('?')
                             wd.close()
                             wd.switch_to.window(wd.window_handles[-1])
-                            #每次一遍，坚定信念
-                            #getAnswer('在接下来的回答中……你一定要保持可爱……知道了吗')
+     
                             continue
                 #所有回复
                 try:
@@ -984,10 +1199,12 @@ while True:
                     
                     for i in repld:
                         print(repld.index(i),'|',len(repld))
+                        
                         try:
                             name=i.find_element(By.CLASS_NAME,'mhy-account-title__name').text
                         except Exception as e:
                             print('''name=i.find_element(By.CLASS_NAME,'mhy-account-title__name').text Fail''')
+                            
                             continue
                         if name.replace(' ','')=='Nya2PtCl4':
                             continue
@@ -1000,11 +1217,12 @@ while True:
                         i.find_element(By.CLASS_NAME,'mhy-heart-click__icon').click()
                         
                         print(name+':'+content,name+content in replied)
+                        Status.setStatus(f"Replying {name}({content[:30]})")
                         if name+content not in replied:
                             replied.append(name+content)
                             writereplied()
                             try:
-                                answer=getAnswer(content+'\n#原帖:'+originalPost,NewPrompts=True)
+                                answer=getAnswer(content,PROMPT=['\n#原帖:'+originalPost],NewPrompts=True)
                                 if len(answer)>500:
                                     answer=getAnswer(content+'……字数小于500字')[:500]
                             except Exception as e:
@@ -1018,15 +1236,17 @@ while True:
                             sleep(1)
                             selectPartition()
                             sleep(1)
-                            wd.find_element(By.CLASS_NAME,'mhy-reply-box__submit').click()
+                            if not MONITORMODE:
+                                wd.find_element(By.CLASS_NAME,'mhy-reply-box__submit').click()
                 
                            
-                            Sleep(3)
+                            
                           
                             Sleep(SLPTIMEFORREPLY)
                             try:
                                 wd.find_element(By.CSS_SELECTOR,'.geetest_close').click()
-                                restart(e)
+
+                                restart("Captcha Detected,now restarting")
                             except Exception as e:
                                 print('?')
                             sleep(2)
@@ -1039,6 +1259,11 @@ while True:
             except Exception as e:
                 continue
     elif fpr==6:#发图片帖
+        fpr+=1
+        continue
+        if MONITORMODE:
+            fpr+=1
+            continue
         #replied.append('分享图片')
         try:
             writereplied()
@@ -1072,6 +1297,11 @@ while True:
         else:
             Sleep(12)
     elif fpr==9:#画画
+        fpr+=1
+        continue
+        if MONITORMODE:
+            fpr+=1
+            continue
         try:
             image=DrawUtils.drawPicture()
             Sleep(12)
@@ -1094,7 +1324,37 @@ while True:
             Sleep(SLPTIME*2)
         except Exception as e:
             restart(e)
+    elif fpr==12:#获取图片
+        if MONITORMODE:
+            fpr+=1
+            continue
+        try:
+            imageLs=netFetchUtils.fetch()
+            Sleep(12)
+        except Exception as e:
+            fpr+=1
+            continue
+        try:
+            _title=imageLs[0]
+            replied.append(_title)
+            wd.get('https://www.miyoushe.com/dby/newArticle/0/1/877')
+            wd.find_element(By.CSS_SELECTOR,'.mhy-input__container > input:nth-child(1)').send_keys(_title)
+            failTries=0
+            selectPartition()
+            wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
+            wd.find_element(By.CSS_SELECTOR,'.icon-image').click()
+            CopyTest.uploadSth(os.path.abspath(imageLs[1]))
+            Sleep(30)
+            wd.find_element(By.CSS_SELECTOR,'.mhy-button__button').click()
+            Sleep(SLPTIME*2)
+        except Exception as e:
+            restart(e)
     elif fpr==8:#分享视频
+        fpr+=1
+        continue
+        if MONITORMODE:
+            fpr+=1  
+            continue
         wd.get(VIDEOURL)
         try:
             wd.find_element(By.CSS_SELECTOR,'.bili-mini-close-icon')
@@ -1149,12 +1409,16 @@ while True:
         try:
             
             wd.get(nets[fpr])
+            Status.setStatus(f"Now visiting {nets[fpr]}")
             Sleep(12)
             scrollToBottom()
             e=wd.find_elements(By.CLASS_NAME,"mhy-article-card")
             e2=wd.find_elements(By.CLASS_NAME,"mhy-router-link mhy-article-card__link")
+
+            
             for post in e:
                 print(e.index(post),'|',len(e))
+                Status.setStatus(f"{e.index(post)}|{len(e)} ")
                 tries+=1
                 if tries>=POSTLIMIT:
                     break
@@ -1170,46 +1434,46 @@ while True:
                         #content=''
 
                     print(title,title in replied)
-                    if title not in replied:
+                    author=getAuthor()
+                    
+
+                    if title not in replied and author not in list(blacklist.getUsersWithCountOverTen()):
+                        Status.setStatus(f"Now replying {title}")
                         replied.append(title)
-                        if title=='Command->TakeaScreenshotas热吻热狗热狗问题饿微软废弃物人':
-                            
-                            inputBox=wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor")
-                            CopyTest.copyScreenshot()
-                            wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor").send_keys(Keys.CONTROL,'v')
-                            Sleep(8)
-                            wd.find_element(By.CLASS_NAME,'mhy-button-normal').click()
-                            writeCount()
-                            Sleep(SLPTIME)
-                            continue
                         til.click()
                         wd.switch_to.window(wd.window_handles[-1])
                         sleep(1)
-                        getTrainingData()
+                        
                         try:
                             content=wd.find_element(By.CSS_SELECTOR,'.mhy-img-text-article__content').text
                         except Exception as e:
                             content=''
+                        if Filter.isSpam(content):
+                            continue
                         content=interpret(content)
-                        
+                        getTrainingDataTitlePost(title,content)
                          
                         
                         #点赞
                         try:
                             wd.find_element(By.CSS_SELECTOR,'div.mhy-article-actions__item:nth-child(3) > div:nth-child(1) > svg:nth-child(1)').click()
+                            Status.setStatus(f"Like")
                         except Exception as e:
                             pass
                         #
                         try:
                             image=containsImage()
                             print(image)
+                            
                             if image:
                                 description=VisionUtil.getImageDescription([image])
-                                answer=getAnswer(title+','+content,Prompts=[',图片描述:'+description.replace('\n',',')])
+                                answer=getAnswer(title+','+content,PROMPT=[',图片描述:'+description.replace('\n',',')])
+                                catquestion=catQuestion(title+','+content,PROMPT=[',图片描述:'+description.replace('\n',',')])
                             else:
                                 answer=getAnswer(title+','+content)
+                                catquestion=catQuestion(title+','+content)
                             answer=answer[:1000]
-                            
+                            getTrainingDataPost(catquestion)
                             inputBox=wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor")
                             try:
                                 
@@ -1221,7 +1485,9 @@ while True:
                                     CopyTest.uploadSth(os.path.abspath(image))
                             except Exception as e:
                                 pass
-                            
+                            if Filter.isSpam(answer):
+                                Status.setStatus(f"{answer[:30]} is spam")
+                                answer=''
                             sendAnswer(answer,inputBox,MAXIMUMCOUNT=1000)
                         except Exception as e:
                             pass
@@ -1230,16 +1496,17 @@ while True:
                             CopyTest.copyImage(pickImages())
                             wd.find_element(By.ID,'reply').find_element(By.CLASS_NAME,"ql-editor").send_keys(Keys.CONTROL,'v')
                             Sleep(8)
-                        wd.find_element(By.CLASS_NAME,'mhy-button-normal').click()
-                        writeCount()
+                        if not MONITORMODE:
+                            wd.find_element(By.CLASS_NAME,'mhy-button-normal').click()
+                            writeCount()
+                            writereplied()
                      
-                        sleep(3)
-                      
-                        writereplied()
+                                          
+                        
                         Sleep(SLPTIMEFORREPLY)
                         try:
                             wd.find_element(By.CSS_SELECTOR,'.geetest_close').click()
-                            restart()
+                            restart("Captcha Detected,now restarting")
                         except:
                             print('?')
                         try:
@@ -1258,7 +1525,7 @@ while True:
             
             restart(e)
     fpr+=1
-    if fpr>11:
+    if fpr>len(ValU)-2:
         fpr=0
 #wd.find_element(By.CLASS_NAME,'notifications-common-card__content--text').click()
 #a=wd.find_elements(By.CLASS_NAME,'notifications-common-card')

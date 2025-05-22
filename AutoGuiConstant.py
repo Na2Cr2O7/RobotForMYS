@@ -8,6 +8,7 @@ import easyocr
 from time import sleep
 import numpy as np
 import enum
+from PIL import Image
 MODEL='qwen2:0.5b'
 
 HWNDTITLE="雷电模拟器-1"

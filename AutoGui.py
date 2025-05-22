@@ -48,8 +48,10 @@ def getElementsByText(text):
         if text == C[1].replace(' ',''):
             elements.append(C[0])
     return elements 
-def clickText(text):
+def clickText(text,clipImage=False):
     ss(x, y, width, height)
+    if clipImage:
+        clipImage()
     bbox=getElementByText(text)
     if not bbox:
         bbox=getUnexactElementByText(text)
@@ -60,7 +62,10 @@ def clickText(text):
         return True
     return False
 
-
+def clipImage():
+        im=Image.open(SSPTH)
+        im=im.crop(0,60,x+width,y+height)
+        im.save(SSPTH)
 
 
 
@@ -153,6 +158,7 @@ for i in range(185,846,110):
     ss(x, y, width, height)
     result=''
     result=reader.readtext(SSPTH)
+    clipImage()
     print(result)
     if Doreplied(result):
         pyautogui.press(opt.BACK.value)
@@ -163,7 +169,7 @@ for i in range(185,846,110):
     
     answer=getAnswerforAutoGui(text)
     print(answer)
-    answer+='\n[回复标记]<--'+REPLIEDMARK+'-->'
+    #answer+='\n[回复标记]<--'+REPLIEDMARK+'-->'
     #输入框
     sleep(2)
     clickPercent((.5,.945))

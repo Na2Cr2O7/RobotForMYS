@@ -18,7 +18,6 @@ def getSimiliarity(path1,path2) ->int :
     hst1=cv2.calcHist([image1],[0],None,[255],[0,256])
     hst2=cv2.calcHist([image2],[0],None,[255],[0,256])
     return cv2.compareHist(hst1,hst2,cv2.HISTCMP_KL_DIV)
-
 def determine(image_path,name):
     
     res = ollama.chat(
